@@ -28,11 +28,11 @@
   (let [{host :host
          user :username
          pass :password} (apply hash-map args)]
-    (class/forName "org.apache.derby.jdbc.EmbeddedDriver")
-    (...)))
+    (class/forName "org.apache.derby.jdbc.EmbeddedDriver"))
+  nil)
 
 ;; TRANSACTIONS =======================================
 
-(defn query ...
-(defn alter
-(defn create ...
+(defn query [] nil)
+(defn alter [] nil)
+(defn create [] nil)
