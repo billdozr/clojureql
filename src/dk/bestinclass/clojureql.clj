@@ -11,7 +11,6 @@
 
 (ns dk.bestinclass.clojureql)
 
-
 ;; GLOBALS ============================================
 
 (defstruct sql-connection :host
@@ -29,11 +28,51 @@
   (let [{host :host
          user :username
          pass :password} (apply hash-map args)]
-    (class/forName "org.apache.derby.jdbc.EmbeddedDriver")
-    (...)))
+    (Class/forName "org.apache.derby.jdbc.EmbeddedDriver"))
+  nil)
 
 ;; TRANSACTIONS =======================================
 
-(defn query ...
-(defn alter
-(defn create ...
+(defn query [] nil)
+(defn xalter [] nil)
+(defn create [] nil)
+
+(defstruct
+  sql-query
+  :columns :tables :predicates :column-aliases :table-aliases)
+
+(defmulti sql* (fn [_ form] (first form)))
+
+(defmethod sql* 'query
+  [env [_ col-spec table-spec pred-spec]]
+  (let [check-alias (fn [[specs aliases] spec]
+                      (cond
+                        (vector? spec) (vector (conj specs (first spec))
+                                               (conj aliases spec))
+                        (symbol? spec) (vector (conj specs spec) aliases)
+                        :else          (vector specs aliases)))
+        col-spec    (if (vector? col-spec) col-spec (vector col-spec))
+        [col-spec col-aliases]
+                    (reduce (fn [[specs aliases] spec]
+                              (if (or (symbol? spec) (vector? spec))
+                                (check-alias [specs aliases] spec)
+                                (let [prefix (name (first spec))]
+                                  (reduce (fn [specs-aliases col]
+                                            (let [col (if (vector? col)
+                                                        (vector (symbol (str prefix "." (name (first col))))
+                                                                (second col))
+                                                        (symbol (str prefix "." col)))]
+                                              (check-alias specs-aliases col)))
+                                          [specs aliases]
+                                          (rest spec)))))
+                            [nil {}]
+                            col-spec)
+        tables-spec (if (vector? table-spec) table-spec (vector table-spec))
+        [table-spec table-aliases]
+                   (reduce check-alias [nil {}] table-spec)]
+    (struct sql-query col-spec table-spec nil col-aliases table-aliases)))
+
+(defmacro sql
+  [vars form]
+  `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
+     (sql* env# ~(list 'quote form))))
