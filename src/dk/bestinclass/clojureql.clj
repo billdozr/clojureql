@@ -10,3 +10,26 @@
 ;; this software.
 
 (ns dk.bestinclass.clojureql)
+
+
+;; GLOBALS ============================================
+
+(defstruct sql-connection :host
+                          :username
+                          :password)
+
+(def *connection* (ref (struct sql-connection 0 0 0)))
+
+
+;; CONNECTION =========================================
+
+(defn make-connection
+  [& args]
+  (let [{host :host
+         user :username
+         pass :password} (apply hash-map args)]
+    (class/forName "org.apache.derby.jdbc.EmbeddedDriver")
+    (...)))
+
+;; PUBLIC FUNCTIONS ===================================
+
