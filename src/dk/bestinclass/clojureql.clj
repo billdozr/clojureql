@@ -16,9 +16,10 @@
 
 (defstruct sql-connection :host
                           :username
-                          :password)
+                          :password
+                          :live)
 
-(def *connection* (ref (struct sql-connection 0 0 0)))
+(def *connection* (ref (struct sql-connection 0 0 0 false)))
 
 
 ;; CONNECTION =========================================
