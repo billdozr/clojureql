@@ -31,5 +31,8 @@
     (class/forName "org.apache.derby.jdbc.EmbeddedDriver")
     (...)))
 
-;; PUBLIC FUNCTIONS ===================================
+;; TRANSACTIONS =======================================
 
+(defn query ...
+(defn alter
+(defn create ...
