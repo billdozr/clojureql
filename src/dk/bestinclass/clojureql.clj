@@ -48,7 +48,7 @@
 ; SELECT
 (defstruct
   sql-query
-  :columns :tables :predicates :column-aliases :table-aliases)
+  :type :columns :tables :predicates :column-aliases :table-aliases)
 
 (defn- ->vector
   [x]
@@ -92,13 +92,14 @@
         table-spec (map ->vector table-spec)
         [table-spec table-aliases]
                    (reduce check-alias [nil {}] table-spec)]
-    (struct sql-query col-spec table-spec pred-spec col-aliases table-aliases)))
+    (struct sql-query ::Select col-spec table-spec pred-spec
+            col-aliases table-aliases)))
 
 ; INSERT-INTO
-(defstruct sql-insert :table :values)
+(defstruct sql-insert :type :table :values)
 
 (defmethod sql* 'insert-into
   [env [_ table & col-val-pairs]]
   (if (= (rem (count col-val-pairs) 2) 0)
-    (struct sql-insert table (apply hash-map col-val-pairs))
+    (struct sql-insert ::Insert table (apply hash-map col-val-pairs))
     (throw (Exception. "column/value pairs not balanced"))))
