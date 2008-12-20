@@ -36,6 +36,16 @@
 (defn xalter [] nil)
 (defn create [] nil)
 
+(defmulti sql* (fn [_ form] (first form)))
+
+(defmacro sql
+  ([form]
+   `(sql* (hash-map) ~(list 'quote form)))
+  ([vars form]
+   `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
+      (sql* env# ~(list 'quote form)))))
+
+; SELECT
 (defstruct
   sql-query
   :columns :tables :predicates :column-aliases :table-aliases)
@@ -67,9 +77,6 @@
              (reslv col)))
          cols)))
 
-(defmulti sql* (fn [_ form] (first form)))
-
-; SELECT
 (defmethod sql* 'query
   [env [_ col-spec table-spec pred-spec]]
   (let [col-spec   (->vector col-spec)
@@ -85,7 +92,7 @@
         table-spec (map ->vector table-spec)
         [table-spec table-aliases]
                    (reduce check-alias [nil {}] table-spec)]
-    (struct sql-query col-spec table-spec nil col-aliases table-aliases)))
+    (struct sql-query col-spec table-spec pred-spec col-aliases table-aliases)))
 
 ; INSERT-INTO
 (defstruct sql-insert :table :values)
@@ -95,10 +102,3 @@
   (if (= (rem (count col-val-pairs) 2) 0)
     (struct sql-insert table (apply hash-map col-val-pairs))
     (throw (Exception. "column/value pairs not balanced"))))
-
-(defmacro sql
-  ([form]
-   `(sql* (hash-map) ~(list 'quote form)))
-  ([vars form]
-   `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
-      (sql* env# ~(list 'quote form)))))
