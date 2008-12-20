@@ -89,6 +89,8 @@
      (struct sql-query col-spec table-spec pred-spec col-aliases table-aliases))))
 
 (defmacro sql
-  [vars form]
-  `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
-     (sql* env# ~(list 'quote form))))
+  ([form]
+   `(sql* (hash-map) ~(list 'quote form)))
+  ([vars form]
+   `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
+      (sql* env# ~(list 'quote form)))))
