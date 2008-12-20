@@ -69,6 +69,7 @@
 
 (defmulti sql* (fn [_ form] (first form)))
 
+; SELECT
 (defmethod sql* 'query
   [env [_ col-spec table-spec pred-spec]]
   (let [col-spec   (->vector col-spec)
@@ -85,6 +86,15 @@
         [table-spec table-aliases]
                    (reduce check-alias [nil {}] table-spec)]
     (struct sql-query col-spec table-spec nil col-aliases table-aliases)))
+
+; INSERT-INTO
+(defstruct sql-insert :table :values)
+
+(defmethod sql* 'insert-into
+  [env [_ table & col-val-pairs]]
+  (if (= (rem (count col-val-pairs) 2) 0)
+    (struct sql-insert table (apply hash-map col-val-pairs))
+    (throw (Exception. "column/value pairs not balanced"))))
 
 (defmacro sql
   ([form]
