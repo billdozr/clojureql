@@ -40,42 +40,58 @@
 (defstruct  sql-query
   :columns :tables :predicates :column-aliases :table-aliases)
 
+(defn- ->vector
+  [x]
+  (cond
+    (vector? x) x
+    (symbol? x) (vector x)
+    (string? x) (vector x)
+    :else       (throw (Exception.
+                         "only Symbols, Strings or Vectors are allowed"))))
+
+(defn- check-alias
+  [[specs aliases] [orig as aka]]
+  (if (= as :as)
+    (vector (conj specs orig)
+            (conj aliases [orig aka]))
+    (vector (conj specs orig)
+            aliases)))
+
+(defn- fix-prefix
+  [[prefix & cols]]
+  (let [spref (name prefix)
+        reslv (fn [c] (symbol (str spref "." (name c))))]
+    (map (fn [col]
+           (if (vector? col)
+             (vec (cons (reslv (col 0)) (rest col)))
+             (reslv col)))
+         cols)))
+
 (defmulti sql* (fn [_ form] (first form)))
 
 (defmethod sql* 'query
-  [env [_ col-spec table-spec pred-spec]]
-  (let [check-alias
-        (fn [[specs aliases] spec]
-          (cond
-           (vector? spec) (vector (conj specs (first spec))
-                                  (conj aliases spec))
-           (symbol? spec) (vector (conj specs spec) aliases)
-           :else          (vector specs aliases)))
-        col-spec    (if (vector? col-spec) col-spec (vector col-spec))
-        [col-spec col-aliases]
-        (reduce (fn [[specs aliases] spec]
-                  (if (or (symbol? spec) (vector? spec))
-                    (check-alias [specs aliases] spec)
-                    (let [prefix (name (first spec))]
-                      (reduce (fn [specs-aliases col]
-                                (let [col (if (vector? col)
-                                            (vector (symbol
-                                                     (str prefix
-                                                          "."
-                                                          (name (first col))))
-                                                    (second col))
-                                            (symbol (str prefix "." col)))]
-                                  (check-alias specs-aliases col)))
-                              [specs aliases]
-                              (rest spec)))))
-                [nil {}]
-                col-spec)
-        tables-spec (if (vector? table-spec) table-spec (vector table-spec))
-        [table-spec table-aliases]
-        (reduce check-alias [nil {}] table-spec)]
-    (struct sql-query col-spec table-spec nil col-aliases table-aliases)))
+  ([env [query col-spec table-spec]]
+   (sql* env (list query col-spec table-spec nil)))
+  ([env [_ col-spec table-spec pred-spec]]
+   (let [col-spec   (->vector col-spec)
+         col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
+                            col-spec)
+         col-spec   (map ->vector col-spec)
+         [col-spec col-aliases]
+                    (reduce (fn [specs-aliases spec]
+                              (check-alias specs-aliases spec))
+                            [nil {}]
+                            col-spec)
+         table-spec (->vector table-spec)
+         table-spec (map ->vector table-spec)
+         [table-spec table-aliases]
+                    (reduce check-alias [nil {}] table-spec)]
+     (struct sql-query col-spec table-spec pred-spec col-aliases table-aliases))))
+
 
 (defmacro sql
-  [vars form]
-  `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
-     (sql* env# ~(list 'quote form))))
+  ([form]
+   `(sql* (hash-map) ~(list 'quote form)))
+  ([vars form]
+   `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
+      (sql* env# ~(list 'quote form)))))
