@@ -86,7 +86,7 @@
          table-spec (map ->vector table-spec)
          [table-spec table-aliases]
                     (reduce check-alias [nil {}] table-spec)]
-     (struct sql-query col-spec table-spec nil col-aliases table-aliases))))
+     (struct sql-query col-spec table-spec pred-spec col-aliases table-aliases))))
 
 (defmacro sql
   [vars form]
