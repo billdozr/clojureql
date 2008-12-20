@@ -84,10 +84,7 @@
                            col-spec)
         col-spec   (map ->vector col-spec)
         [col-spec col-aliases]
-                   (reduce (fn [specs-aliases spec]
-                             (check-alias specs-aliases spec))
-                           [nil {}]
-                           col-spec)
+                   (reduce check-alias [nil {}] col-spec)
         table-spec (->vector table-spec)
         table-spec (map ->vector table-spec)
         [table-spec table-aliases]
