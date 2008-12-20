@@ -70,21 +70,23 @@
 (defmulti sql* (fn [_ form] (first form)))
 
 (defmethod sql* 'query
-  [env [_ col-spec table-spec pred-spec]]
-  (let [col-spec   (->vector col-spec)
-        col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
-                           col-spec)
-        col-spec   (map ->vector col-spec)
-        [col-spec col-aliases]
-                   (reduce (fn [specs-aliases spec]
-                             (check-alias specs-aliases spec))
-                           [nil {}]
-                           col-spec)
-        table-spec (->vector table-spec)
-        table-spec (map ->vector table-spec)
-        [table-spec table-aliases]
-                   (reduce check-alias [nil {}] table-spec)]
-    (struct sql-query col-spec table-spec nil col-aliases table-aliases)))
+  ([env [query col-spec table-spec]]
+   (sql* env (list query col-spec table-spec nil)))
+  ([env [_ col-spec table-spec pred-spec]]
+   (let [col-spec   (->vector col-spec)
+         col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
+                            col-spec)
+         col-spec   (map ->vector col-spec)
+         [col-spec col-aliases]
+                    (reduce (fn [specs-aliases spec]
+                              (check-alias specs-aliases spec))
+                            [nil {}]
+                            col-spec)
+         table-spec (->vector table-spec)
+         table-spec (map ->vector table-spec)
+         [table-spec table-aliases]
+                    (reduce check-alias [nil {}] table-spec)]
+     (struct sql-query col-spec table-spec nil col-aliases table-aliases))))
 
 (defmacro sql
   [vars form]
