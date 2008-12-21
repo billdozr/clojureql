@@ -61,7 +61,7 @@
             aliases)))
 
 (defn- fix-prefix
-  " Takes a prefix and a series of columns and prepends the prefix + "."
+  " Takes a prefix and a series of columns and prepends the prefix
     to every column.
 
     Ex. (fix-prefix ['table1 'a 'b 'c]) => (table1.a table2.a table3.a) "
@@ -76,9 +76,9 @@
 
 ;; SQL-BUILDING ============================================
 
+(comment   " This is called from the Sql macro and will produce an
+             Abstract Syntax Tree which reflects the Sql query requested ")
 (defmethod sql* 'query
-  " This is called from the Sql macro and will produce an
-    Abstract Syntax Tree which reflects the Sql query requested "
   [env [_ col-spec table-spec pred-spec]]
   (let [col-spec   (->vector col-spec)
         col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
@@ -93,9 +93,10 @@
     (struct sql-query ::Select col-spec table-spec pred-spec
             col-aliases table-aliases)))
 
+(comment   " This is called from the Sql macro and will produce an
+             Abstract Syntax Tree which reflects the Sql insert-into
+             requested ")
 (defmethod sql* 'insert-into
-  " This is called from the Sql macro and will produce an
-    Abstract Syntax Tree which reflects the Sql insert-into requested "
   [env [_ table & col-val-pairs]]
   (if (even? (count col-val-pairs))
     (struct sql-insert ::Insert table (apply hash-map col-val-pairs))
