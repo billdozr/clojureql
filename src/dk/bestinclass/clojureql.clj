@@ -31,25 +31,16 @@
     (Class/forName "org.apache.derby.jdbc.EmbeddedDriver"))
   nil)
 
-;; TRANSACTIONS ============================================
-
-(defn query [] nil)
-(defn xalter [] nil)
-(defn create [] nil)
+;; DEFINITIONS =============================================
 
 (defmulti sql* (fn [_ form] (first form)))
 
-(defmacro sql
-  ([form]
-   `(sql* (hash-map) ~(list 'quote form)))
-  ([vars form]
-   `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
-      (sql* env# ~(list 'quote form)))))
-
-; SELECT
-(defstruct
-  sql-query
+(defstruct sql-query
   :type :columns :tables :predicates :column-aliases :table-aliases)
+
+(defstruct sql-insert :type :table :values)
+
+;; HELPERS =================================================
 
 (defn- ->vector
   [x]
@@ -78,6 +69,8 @@
              (reslv col)))
          cols)))
 
+;; SQL-BUILDING ============================================
+
 (defmethod sql* 'query
   [env [_ col-spec table-spec pred-spec]]
   (let [col-spec   (->vector col-spec)
@@ -93,7 +86,11 @@
     (struct sql-query ::Select col-spec table-spec pred-spec
             col-aliases table-aliases)))
 
-
+(defmethod sql* 'insert-into
+  [env [_ table & col-val-pairs]]
+  (if (even? (count col-val-pairs))
+    (struct sql-insert ::Insert table (apply hash-map col-val-pairs))
+    (throw (Exception. "column/value pairs not balanced"))))
 
 (defmacro sql
   ([form]
@@ -101,6 +98,7 @@
   ([vars form]
    `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
       (sql* env# ~(list 'quote form)))))
+
 
 ;; COMPILER ================================================
 
@@ -127,12 +125,8 @@
      (if (not= nil (:predicates ast))
        (str "WHERE " (infixed (:predicates ast)))))))
 
-; INSERT-INTO
-(defstruct sql-insert :type :table :values)
 
-(defmethod sql* 'insert-into
-  [env [_ table & col-val-pairs]]
-  (if (= (rem (count col-val-pairs) 2) 0)
-    (struct sql-insert ::Insert table (apply hash-map col-val-pairs))
-    (throw (Exception. "column/value pairs not balanced"))))
+
+
+
 
