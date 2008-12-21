@@ -106,7 +106,7 @@
   " sql dispatches our Sql-Statement with all arguments fitted into
     a hasmap.
 
-   Ex.  (sql (query [developer language] employees (< IQ 100)))
+   Ex.  (sql (query [developer language iq] employees (< iq 100)))
 
    This will produce an AST which, when passed to the compiler will
    produce an SQL query which selects Python developers from an SQL table"
@@ -123,40 +123,52 @@
   "Takes a sequence (list/vector) and seperates the elements by commas
 
    Ex. (comma-seperate ['hi 'there]) => 'hi,there' "
-  [seque]
-  (loop [x 0 str-out ""]
-    (if (< x (dec (count seque)))
-      (recur (inc x) (str str-out (nth seque x) ","))
-      (str str-out (nth seque x)))))
+ [coll]
+ (apply str
+        (interpose "," coll)))
+ 
+
+(defn cherry-pick
+  [lst & cherries]
+  (if (symbol? lst)
+    (.trim (str lst))
+    (when (< (reduce max cherries) (count lst))
+      (.trim
+       (apply str
+              (for [cherry cherries]
+                (str (nth lst cherry) " ")))))))
+    
 
 (defn infixed
   " Takes a Lisp-style mathematical expression and converts the
     prefixed operator to an infixed one
 
-    Ex. (infixed (> x 5) => x > 5) "
+    Ex. (infixed (or (> x 5) (< x 10)) => x > 5 OR x < 10 "
   [statement]
-  (if (= 3 (count statement))
-    (str (nth statement 1) " " (nth statement 0) " " (nth statement 2))
-    nil))
+  (if (or (= (str (nth statement 0)) "or") (= (str (nth statement 0)) "and"))
+    (cherry-pick (map #(cherry-pick % 1 0 2) statement) 1 0 2)
+    (cherry-pick statement 1 0 2)))
+   
   
 (defn compile-ast
   " Takes an Abstract Syntax Tree (like the one the sql macro
     generates, and produces an SQL query.
 
     Ex. (compile-ast (sql (query [programmers efficiency]
-                                 employees (= Efficiency 'Low'))))
-      => SELECT (programmers, efficiency) FROM employees WHERE Efficiency = Low
+                                 employees (= efficiency 'Low'))))
+      => SELECT (programmers, efficiency) FROM employees WHERE efficiency = Low
 
     This can then be passed directly to the backend, which will return
     a list of both C++ developers and Vim users. "   
   [ast]
   (let [cols (str "(" (comma-seperate (:columns ast)) ")")
         tabs (str "(" (comma-seperate (:tables ast))  ")")]                  
-    (str
-     "SELECT " cols " "
-     "FROM "   tabs " "
-     (if (not= nil (:predicates ast))
-       (str "WHERE " (infixed (:predicates ast)))))))
+    (.trim
+     (str
+      "SELECT " cols " "
+      "FROM "   tabs " "
+      (when-not (nil? (:predicates ast)))
+        (str "WHERE " (infixed (:predicates ast)))))))
 
 
 
