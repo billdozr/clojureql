@@ -34,6 +34,7 @@
 ;; DEFINITIONS =============================================
 
 (defmulti sql* (fn [_ form] (first form)))
+(defmulti compile-ast #^{:doc "bla bla"} (fn [ast] (:type ast)))
 
 (defstruct sql-query
   :type :columns :tables :predicates :column-aliases :table-aliases)
@@ -149,8 +150,6 @@
     (cherry-pick (map #(cherry-pick % 1 0 2) statement) 1 0 2)
     (cherry-pick statement 1 0 2)))
    
-(defmulti compile-ast (fn [ast] (:type ast)))
-
  (comment
   " Takes an Abstract Syntax Tree (like the one the sql macro
     generates, and produces an SQL query.
@@ -173,6 +172,8 @@
       "FROM "   tabs " "
       (when-not (nil? (:predicates ast)))
         (str "WHERE " (infixed (:predicates ast)))))))
+
+
 
 
 
