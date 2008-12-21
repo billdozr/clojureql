@@ -149,8 +149,9 @@
     (cherry-pick (map #(cherry-pick % 1 0 2) statement) 1 0 2)
     (cherry-pick statement 1 0 2)))
    
-  
-(defn compile-ast
+(defmulti compile-ast (fn [ast] (:type ast)))
+
+ (comment
   " Takes an Abstract Syntax Tree (like the one the sql macro
     generates, and produces an SQL query.
 
@@ -159,7 +160,10 @@
       => SELECT (programmers, efficiency) FROM employees WHERE efficiency = Low
 
     This can then be passed directly to the backend, which will return
-    a list of both C++ developers and Vim users. "   
+    a list of both C++ developers and Vim users. "   )
+
+
+(defmethod compile-ast ::Select
   [ast]
   (let [cols (str "(" (comma-seperate (:columns ast)) ")")
         tabs (str "(" (comma-seperate (:tables ast))  ")")]                  
