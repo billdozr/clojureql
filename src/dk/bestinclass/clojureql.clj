@@ -37,10 +37,6 @@
 (defn xalter [] nil)
 (defn create [] nil)
 
-<<<<<<< HEAD:src/dk/bestinclass/clojureql.clj
-(defstruct  sql-query
-  :columns :tables :predicates :column-aliases :table-aliases)
-=======
 (defmulti sql* (fn [_ form] (first form)))
 
 (defmacro sql
@@ -54,7 +50,6 @@
 (defstruct
   sql-query
   :type :columns :tables :predicates :column-aliases :table-aliases)
->>>>>>> 16e3a488ffb4309feaa11b0ff3fac8e309174ead:src/dk/bestinclass/clojureql.clj
 
 (defn- ->vector
   [x]
@@ -84,23 +79,20 @@
          cols)))
 
 (defmethod sql* 'query
-<<<<<<< HEAD:src/dk/bestinclass/clojureql.clj
-  ([env [_ col-spec table-spec & pred-spec]]
-   (let [col-spec   (->vector col-spec) 
-         col-spec   (mapcat (fn [s] (if (seq? s)
-                                      (fix-prefix s)
-                                      (list s))) col-spec)
-         col-spec   (map ->vector col-spec)
-         [col-spec col-aliases]
-                    (reduce (fn [specs-aliases spec]
-                              (check-alias specs-aliases spec))
-                            [nil {}]
-                            col-spec)
-         table-spec (->vector table-spec)
-         table-spec (map ->vector table-spec)
-         [table-spec table-aliases]
-                    (reduce check-alias [nil {}] table-spec)]
-     (struct sql-query col-spec table-spec pred-spec col-aliases table-aliases))))
+  [env [_ col-spec table-spec pred-spec]]
+  (let [col-spec   (->vector col-spec)
+        col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
+                           col-spec)
+        col-spec   (map ->vector col-spec)
+        [col-spec col-aliases]
+                   (reduce check-alias [nil {}] col-spec)
+        table-spec (->vector table-spec)
+        table-spec (map ->vector table-spec)
+        [table-spec table-aliases]
+                   (reduce check-alias [nil {}] table-spec)]
+    (struct sql-query ::Select col-spec table-spec pred-spec
+            col-aliases table-aliases)))
+
 
 
 (defmacro sql
@@ -121,11 +113,9 @@
 
 (defn infixed
   [statement]
-  (let [statement (first statement)]
-    (if (= 3 (count statement))
-      (str (nth statement 1) " " (nth statement 0) " " (nth statement 2))
-      nil)))
-    
+  (if (= 3 (count statement))
+    (str (nth statement 1) " " (nth statement 0) " " (nth statement 2))
+    nil))
   
 (defn compile-ast
   [ast]
@@ -136,20 +126,6 @@
      "FROM "   tabs " "
      (if (not= nil (:predicates ast))
        (str "WHERE " (infixed (:predicates ast)))))))
-=======
-  [env [_ col-spec table-spec pred-spec]]
-  (let [col-spec   (->vector col-spec)
-        col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
-                           col-spec)
-        col-spec   (map ->vector col-spec)
-        [col-spec col-aliases]
-                   (reduce check-alias [nil {}] col-spec)
-        table-spec (->vector table-spec)
-        table-spec (map ->vector table-spec)
-        [table-spec table-aliases]
-                   (reduce check-alias [nil {}] table-spec)]
-    (struct sql-query ::Select col-spec table-spec pred-spec
-            col-aliases table-aliases)))
 
 ; INSERT-INTO
 (defstruct sql-insert :type :table :values)
@@ -159,4 +135,4 @@
   (if (= (rem (count col-val-pairs) 2) 0)
     (struct sql-insert ::Insert table (apply hash-map col-val-pairs))
     (throw (Exception. "column/value pairs not balanced"))))
->>>>>>> 16e3a488ffb4309feaa11b0ff3fac8e309174ead:src/dk/bestinclass/clojureql.clj
+
