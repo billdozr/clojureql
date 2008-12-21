@@ -11,7 +11,7 @@
 
 (ns dk.bestinclass.clojureql)
 
-;; GLOBALS ============================================
+;; GLOBALS =================================================
 
 (defstruct sql-connection :host
                           :username
@@ -21,7 +21,7 @@
 (def *connection* (ref (struct sql-connection 0 0 0 false)))
 
 
-;; CONNECTION =========================================
+;; CONNECTION ==============================================
 
 (defn make-connection
   [& args]
@@ -31,7 +31,7 @@
     (Class/forName "org.apache.derby.jdbc.EmbeddedDriver"))
   nil)
 
-;; TRANSACTIONS =======================================
+;; TRANSACTIONS ============================================
 
 (defn query [] nil)
 (defn xalter [] nil)
@@ -70,12 +70,11 @@
 (defmulti sql* (fn [_ form] (first form)))
 
 (defmethod sql* 'query
-  ([env [query col-spec table-spec]]
-   (sql* env (list query col-spec table-spec nil)))
-  ([env [_ col-spec table-spec pred-spec]]
-   (let [col-spec   (->vector col-spec)
-         col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
-                            col-spec)
+  ([env [_ col-spec table-spec & pred-spec]]
+   (let [col-spec   (->vector col-spec) 
+         col-spec   (mapcat (fn [s] (if (seq? s)
+                                      (fix-prefix s)
+                                      (list s))) col-spec)
          col-spec   (map ->vector col-spec)
          [col-spec col-aliases]
                     (reduce (fn [specs-aliases spec]
@@ -95,3 +94,30 @@
   ([vars form]
    `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
       (sql* env# ~(list 'quote form)))))
+
+;; COMPILER ================================================
+
+(defn comma-seperate
+  [seque]
+  (loop [x 0 str-out ""]
+    (if (< x (dec (count seque)))
+      (recur (inc x) (str str-out (nth seque x) ","))
+      (str str-out (nth seque x)))))
+
+(defn infixed
+  [statement]
+  (let [statement (first statement)]
+    (if (= 3 (count statement))
+      (str (nth statement 1) " " (nth statement 0) " " (nth statement 2))
+      nil)))
+    
+  
+(defn compile-ast
+  [ast]
+  (let [cols (str "(" (comma-seperate (:columns ast)) ")")
+        tabs (str "(" (comma-seperate (:tables ast))  ")")]                  
+    (str
+     "SELECT " cols " "
+     "FROM "   tabs " "
+     (if (not= nil (:predicates ast))
+       (str "WHERE " (infixed (:predicates ast)))))))
