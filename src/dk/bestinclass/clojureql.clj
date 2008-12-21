@@ -43,6 +43,7 @@
 ;; HELPERS =================================================
 
 (defn- ->vector
+  "Takes 1 argument and converts it into a vector"
   [x]
   (cond
     (vector? x) x
@@ -60,6 +61,10 @@
             aliases)))
 
 (defn- fix-prefix
+  " Takes a prefix and a series of columns and prepends the prefix + "."
+    to every column.
+
+    Ex. (fix-prefix ['table1 'a 'b 'c]) => (table1.a table2.a table3.a) "
   [[prefix & cols]]
   (let [spref (name prefix)
         reslv (fn [c] (symbol (str spref "." (name c))))]
@@ -72,6 +77,8 @@
 ;; SQL-BUILDING ============================================
 
 (defmethod sql* 'query
+  " This is called from the Sql macro and will produce an
+    Abstract Syntax Tree which reflects the Sql query requested "
   [env [_ col-spec table-spec pred-spec]]
   (let [col-spec   (->vector col-spec)
         col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
@@ -87,12 +94,21 @@
             col-aliases table-aliases)))
 
 (defmethod sql* 'insert-into
+  " This is called from the Sql macro and will produce an
+    Abstract Syntax Tree which reflects the Sql insert-into requested "
   [env [_ table & col-val-pairs]]
   (if (even? (count col-val-pairs))
     (struct sql-insert ::Insert table (apply hash-map col-val-pairs))
     (throw (Exception. "column/value pairs not balanced"))))
 
 (defmacro sql
+  " sql dispatches our Sql-Statement with all arguments fitted into
+    a hasmap.
+
+   Ex.  (sql (query [developer language] employees (< IQ 100)))
+
+   This will produce an AST which, when passed to the compiler will
+   produce an SQL query which selects Python developers from an SQL table"
   ([form]
    `(sql* (hash-map) ~(list 'quote form)))
   ([vars form]
@@ -103,6 +119,9 @@
 ;; COMPILER ================================================
 
 (defn comma-seperate
+  "Takes a sequence (list/vector) and seperates the elements by commas
+
+   Ex. (comma-seperate ['hi 'there]) => 'hi,there' "
   [seque]
   (loop [x 0 str-out ""]
     (if (< x (dec (count seque)))
@@ -110,12 +129,25 @@
       (str str-out (nth seque x)))))
 
 (defn infixed
+  " Takes a Lisp-style mathematical expression and converts the
+    prefixed operator to an infixed one
+
+    Ex. (infixed (> x 5) => x > 5) "
   [statement]
   (if (= 3 (count statement))
     (str (nth statement 1) " " (nth statement 0) " " (nth statement 2))
     nil))
   
 (defn compile-ast
+  " Takes an Abstract Syntax Tree (like the one the sql macro
+    generates, and produces an SQL query.
+
+    Ex. (compile-ast (sql (query [programmers efficiency]
+                                 employees (= Efficiency 'Low'))))
+      => SELECT (programmers, efficiency) FROM employees WHERE Efficiency = Low
+
+    This can then be passed directly to the backend, which will return
+    a list of both C++ developers and Vim users. "   
   [ast]
   (let [cols (str "(" (comma-seperate (:columns ast)) ")")
         tabs (str "(" (comma-seperate (:tables ast))  ")")]                  
