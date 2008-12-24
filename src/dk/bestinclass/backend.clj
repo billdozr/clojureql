@@ -16,37 +16,41 @@
 
 (defstruct sql-connection
   :host
+  :protocol
   :username
   :password
   :connection)
 
 (def *connection* (ref (struct sql-connection
-                               "127.0.0.1"
-                               "testql"
-                               "testpassword"
+                               "127.0.0.1/mysql"       ; Host
+                               "mysql"                 ; protocol
+                               "testql"                ; Username
+                               "test"                  ; Password
                                false)))
 
 
 ;; CONNECTION ==============================================
 
-(defn make-connection
-  [& args]
-  (let [{host :host
-         user :username
-         pass :password} (apply hash-map args)]
-    (Class/forName "org.apache.derby.jdbc.EmbeddedDriver"))
-  nil)
 
-(defn run-select
-  [username password]
-  (Class/forName "com.mysql.jdbc.Driver")
-  (let [jdbc-url (str "jdbc:mysql://127.0.0.1:3306/mysql")]
-    (try
-     (with-open [con (DriverManager/getConnection jdbc-url
-                                                 username
-                                                 password)]
-      ;(compile-ast (sql (query [owner title] list)))
-       (println "Connected!"))
-     (catch SQLException x
-       (println x)))))
-       
+(defmacro with-connection
+  [& body]
+  `(do
+     (Class/forName "com.mysql.jdbc.Driver")
+     (let [jdbc-url# (format "jdbc:%s://%s"
+                             ~(:protocol @*connection*)
+                             ~(:host @*connection*))]
+        (try
+         (with-open [con# (DriverManager/getConnection jdbc-url#
+                                                      ~(:username @*connection*)
+                                                      ~(:password @*connection*))]
+           ~@body)
+           (catch SQLException exceptionSql#
+             (println exceptionSql#))))))
+
+
+(defmacro run-query
+  [& body]
+  `(do
+     (with-connection
+       (compile-ast
+        ~@body))))

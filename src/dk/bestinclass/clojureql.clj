@@ -11,30 +11,11 @@
 
 (ns dk.bestinclass.clojureql)
 
-;; GLOBALS =================================================
-
-(defstruct sql-connection :host
-                          :username
-                          :password
-                          :live)
-
-(def *connection* (ref (struct sql-connection 0 0 0 false)))
-
-
-;; CONNECTION ==============================================
-
-(defn make-connection
-  [& args]
-  (let [{host :host
-         user :username
-         pass :password} (apply hash-map args)]
-    (Class/forName "org.apache.derby.jdbc.EmbeddedDriver"))
-  nil)
 
 ;; DEFINITIONS =============================================
 
 (defmulti sql* (fn [_ form] (first form)))
-(defmulti compile-ast #^{:doc "bla bla"} (fn [ast] (:type ast)))
+(defmulti compile-ast (fn [ast] (:type ast)))
 
 (defstruct sql-query
   :type :columns :tables :predicates :column-aliases :table-aliases)
@@ -77,8 +58,6 @@
 
 ;; SQL-BUILDING ============================================
 
-(comment   " This is called from the Sql macro and will produce an
-             Abstract Syntax Tree which reflects the Sql query requested ")
 (defmethod sql* 'query
   [env [_ col-spec table-spec pred-spec]]
   (let [col-spec   (->vector col-spec)
@@ -94,9 +73,7 @@
     (struct sql-query ::Select col-spec table-spec pred-spec
             col-aliases table-aliases)))
 
-(comment   " This is called from the Sql macro and will produce an
-             Abstract Syntax Tree which reflects the Sql insert-into
-             requested ")
+
 (defmethod sql* 'insert-into
   [env [_ table & col-val-pairs]]
   (if (even? (count col-val-pairs))
@@ -105,12 +82,9 @@
 
 (defmacro sql
   " sql dispatches our Sql-Statement with all arguments fitted into
-    a hasmap.
+    a hashmap.
 
-   Ex.  (sql (query [developer language iq] employees (< iq 100)))
-
-   This will produce an AST which, when passed to the compiler will
-   produce an SQL query which selects Python developers from an SQL table"
+   Ex.  (sql (query [developer language id] employees (= language 'Clojure'))) "
   ([form]
    `(sql* (hash-map) ~(list 'quote form)))
   ([vars form]
@@ -139,7 +113,6 @@
               (for [cherry cherries]
                 (str (nth lst cherry) " ")))))))
     
-
 (defn infixed
   " Takes a Lisp-style mathematical expression and converts the
     prefixed operator to an infixed one
@@ -149,18 +122,6 @@
   (if (or (= (str (nth statement 0)) "or") (= (str (nth statement 0)) "and"))
     (cherry-pick (map #(cherry-pick % 1 0 2) statement) 1 0 2)
     (cherry-pick statement 1 0 2)))
-   
- (comment
-  " Takes an Abstract Syntax Tree (like the one the sql macro
-    generates, and produces an SQL query.
-
-    Ex. (compile-ast (sql (query [programmers efficiency]
-                                 employees (= efficiency 'Low'))))
-      => SELECT (programmers, efficiency) FROM employees WHERE efficiency = Low
-
-    This can then be passed directly to the backend, which will return
-    a list of both C++ developers and Vim users. "   )
-
 
 (defmethod compile-ast ::Select
   [ast]
@@ -173,10 +134,27 @@
       (when-not (nil? (:predicates ast)))
         (str "WHERE " (infixed (:predicates ast)))))))
 
+(defn single-out
+  [col cherries]
+  (map #(nth col %) cherries))
 
 
+(defn math-func?
+  [expr]
+  (some true? (map #(= (first expr) %)
+                   '(> < >= <= = + -))))
 
+(defn and-or?
+  [expr]
+  (or (= (str (first expr)) "or")
+      (= (str (first expr)) "and")))
 
-
-
-
+(defmacro where [e]
+  (let [f (fn f [e]
+            (if-not (list? e)
+              [(str e)]
+              (let [[p & r] e]
+                (if (= p `unquote)
+                  r
+                  (apply concat (interpose [(str " " p " ")] (map f r)))))))]
+    (list* `str (f e))))
