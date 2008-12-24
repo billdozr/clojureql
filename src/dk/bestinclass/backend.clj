@@ -47,10 +47,14 @@
            (catch SQLException exceptionSql#
              (println exceptionSql#))))))
 
+(defmacro with-result
+  [& body]
+  `(do ~@body))
 
 (defmacro run-query
   [& body]
   `(do
      (with-connection
-       (compile-ast
-        ~@body))))
+         (with-results
+          (compile-ast
+           ~@body)))))

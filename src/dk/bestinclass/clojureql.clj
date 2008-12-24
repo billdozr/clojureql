@@ -101,7 +101,6 @@
  [coll]
  (apply str
         (interpose "," coll)))
- 
 
 (defn cherry-pick
   [lst & cherries]
@@ -113,15 +112,26 @@
               (for [cherry cherries]
                 (str (nth lst cherry) " ")))))))
     
-(defn infixed
-  " Takes a Lisp-style mathematical expression and converts the
-    prefixed operator to an infixed one
+;(defn- infixed
+;  " Takes a Lisp-style mathematical expression and converts the
+;    prefixed operator to an infixed one
 
-    Ex. (infixed (or (> x 5) (< x 10)) => x > 5 OR x < 10 "
-  [statement]
-  (if (or (= (str (nth statement 0)) "or") (= (str (nth statement 0)) "and"))
-    (cherry-pick (map #(cherry-pick % 1 0 2) statement) 1 0 2)
-    (cherry-pick statement 1 0 2)))
+;    Ex. (infixed (or (> x 5) (< x 10)) => x > 5 OR x < 10 "
+;  [statement]
+;  (if (or (= (str (nth statement 0)) "or") (= (str (nth statement 0)) "and"))
+;    (cherry-pick (map #(cherry-pick % 1 0 2) statement) 1 0 2)
+;    (cherry-pick statement 1 0 2)))
+
+(defn- infixed
+  [e]
+  (let [f (fn f [e]
+            (if-not (list? e)
+              [(str e)]
+              (let [[p & r] e]
+                (if (= p `unquote)
+                  r
+                  (apply concat (interpose [(str " " p " ")] (map f r)))))))]                  
+    (apply str (f e))))
 
 (defmethod compile-ast ::Select
   [ast]
@@ -134,27 +144,3 @@
       (when-not (nil? (:predicates ast)))
         (str "WHERE " (infixed (:predicates ast)))))))
 
-(defn single-out
-  [col cherries]
-  (map #(nth col %) cherries))
-
-
-(defn math-func?
-  [expr]
-  (some true? (map #(= (first expr) %)
-                   '(> < >= <= = + -))))
-
-(defn and-or?
-  [expr]
-  (or (= (str (first expr)) "or")
-      (= (str (first expr)) "and")))
-
-(defmacro where [e]
-  (let [f (fn f [e]
-            (if-not (list? e)
-              [(str e)]
-              (let [[p & r] e]
-                (if (= p `unquote)
-                  r
-                  (apply concat (interpose [(str " " p " ")] (map f r)))))))]
-    (list* `str (f e))))
