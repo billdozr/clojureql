@@ -94,10 +94,10 @@
 
 ;; COMPILER ================================================
 
-(defn comma-seperate
+(defn comma-separate
   "Takes a sequence (list/vector) and seperates the elements by commas
 
-   Ex. (comma-seperate ['hi 'there]) => 'hi,there' "
+   Ex. (comma-separate ['hi 'there]) => 'hi,there' "
  [coll]
  (apply str
         (interpose "," coll)))
@@ -135,8 +135,8 @@
 
 (defmethod compile-ast ::Select
   [ast]
-  (let [cols (str "(" (comma-seperate (:columns ast)) ")")
-        tabs (str "(" (comma-seperate (:tables ast))  ")")]                  
+  (let [cols (str "(" (comma-separate (:columns ast)) ")")
+        tabs (str "(" (comma-separate (:tables ast))  ")")]                  
     (.trim
      (str
       "SELECT " cols " "
