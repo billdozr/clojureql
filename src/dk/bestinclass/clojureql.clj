@@ -17,7 +17,6 @@
 ;; DEFINITIONS =============================================
 
 (defmulti sql* (fn [_ form] (first form)))
-(defmulti compile-ast (fn [ast] (:type ast)))
 
 (defstruct sql-query
   :type :columns :tables :predicates :column-aliases :table-aliases)
@@ -94,57 +93,27 @@
       (sql* env# ~(list 'quote form)))))
 
 
-;; COMPILER ================================================
-
-(defn comma-separate
-  "Takes a sequence (list/vector) and seperates the elements by commas
-
-   Ex. (comma-separate ['hi 'there]) => 'hi,there' "
- [coll]
- (apply str
-        (interpose "," coll)))
-
-(defn cherry-pick
-  [lst & cherries]
-  (if (symbol? lst)
-    (.trim (str lst))
-    (when (< (reduce max cherries) (count lst))
-      (.trim
-       (apply str
-              (for [cherry cherries]
-                (str (nth lst cherry) " ")))))))
-    
-(defn- infixed
-  " Contributed by Chouser.
-
-    Ex: (infixed (and (> x 5) (< x 10))) =>
-                  X > 5 AND X < 10 "
-  [e]
-  (let [f (fn f [e]
-            (if-not (list? e)
-              [(str e)]
-              (let [[p & r] e]
-                (if (= p `unquote)
-                  r
-                  (apply concat (interpose [(str " " p " ")] (map f r)))))))]
-    (apply str (f e))))
-
-(defmethod compile-ast ::Select
-  [ast]
-  (let [cols (str "(" (comma-separate (:columns ast)) ")")
-        tabs (str "(" (comma-separate (:tables ast))  ")")]                  
-    (.trim
-     (str
-      "SELECT " cols " "
-      "FROM "   tabs " "
-      (when-not (nil? (:predicates ast)))
-        (str "WHERE " (infixed (:predicates ast)))))))
-
 
 ;; TEST ====================================================
 
+(defn run-all
+  []
+  (let [my-id 3]
+    (println
+     (compile-ast                                   ; This will not be a user-call
+      (sql (query [developer id]                    ; Columns
+                  developers                        ; Table(s)
+                  (or (> id 5) (= id ~myid))))))))  ; Predicate(s)
+
+
+
+
+
 (comment "
   To replicate our test-table, run this on your MySQL server:
+
+  1) Make a database called developers. Add a user and give appropriate rights.
+     'USE developers;', and run the following:
 
   CREATE TABLE `developers`.`employees` (
   `id` int  NOT NULL AUTO_INCREMENT,
@@ -156,13 +125,58 @@
   )
   ENGINE = MyISAM
   COMMENT = 'Table containing employee details for all current developers';
+
+INSERT INTO employees
+   (`id`, `name`, `language`, `effeciency`, `iq`)
+VALUES
+   (1, 'Frank', 'Python', 0.75, 85);
+
+INSERT INTO employees
+   (`id`, `name`, `language`, `effeciency`, `iq`)
+VALUES
+   (2, 'Brian', 'OCaml', 0.8, 110);
+
+INSERT INTO employees
+   (`id`, `name`, `language`, `effeciency`, `iq`)
+VALUES
+   (3, 'John', 'Fortran', 0.1, 120);
+
+INSERT INTO employees
+   (`id`, `name`, `language`, `effeciency`, `iq`)
+VALUES
+   (4, 'Mark', 'PHP', 0.71, 100);
+
+INSERT INTO employees
+   (`id`, `name`, `language`, `effeciency`, `iq`)
+VALUES
+   (5, 'Peter', 'SBCL', 0.9, 125);
+
+INSERT INTO employees
+   (`id`, `name`, `language`, `effeciency`, `iq`)
+VALUES
+   (6, 'Jack D.', 'Haskell', 0.2, 122);
+
+INSERT INTO employees
+   (`id`, `name`, `language`, `effeciency`, `iq`)
+VALUES
+   (7, 'Mike', 'C++', 0.002, 111);
+
+INSERT INTO employees
+   (`id`, `name`, `language`, `effeciency`, `iq`)
+VALUES
+   (8, 'Vader', 'Pure Evil', 0.99, 204);
+
+INSERT INTO employees
+   (`id`, `name`, `language`, `effeciency`, `iq`)
+VALUES
+   (9, 'Arnold', 'Cobol', 0.24, 100);
+
+INSERT INTO employees
+   (`id`, `name`, `language`, `effeciency`, `iq`)
+VALUES
+   (10, 'Chouser', 'Clojure', 1, 205);
+
+
 ")
 
 
-(defn run-all
-  []
-  (println
-   (compile-ast                              ; This will not be a user-call
-    (sql (query [developer id]               ; Columns
-                developers                   ; Table(s)
-                (or (> id 5) (= id 3)))))))  ; Predicate(s)
