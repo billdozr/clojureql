@@ -10,7 +10,6 @@
 ;; this software.
 
 (ns dk.bestinclass.clojureql)
- 
 
 ;; DEFINITIONS =============================================
 
