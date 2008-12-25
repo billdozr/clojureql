@@ -9,7 +9,8 @@
 ;; terms of this license. You must not remove this notice, or any other, from
 ;; this software.
 
-(ns dk.bestinclass.clojureql)
+(ns dk.bestinclass.clojureql
+  (:use dk.bestinclass.sql.backend))
 
 
 
@@ -141,6 +142,22 @@
 
 
 ;; TEST ====================================================
+
+(comment "
+  To replicate our test-table, run this on your MySQL server:
+
+  CREATE TABLE `developers`.`employees` (
+  `id` int  NOT NULL AUTO_INCREMENT,
+  `name` varchar(100)  NOT NULL,
+  `language` varchar(100)  NOT NULL,
+  `effeciency` DOUBLE  NOT NULL,
+  `iq` int  NOT NULL,
+  PRIMARY KEY (`id`)
+  )
+  ENGINE = MyISAM
+  COMMENT = 'Table containing employee details for all current developers';
+")
+
 
 (defn run-all
   []

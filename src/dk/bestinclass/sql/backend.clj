@@ -9,7 +9,7 @@
 ;; terms of this license. You must not remove this notice, or any other, from
 ;; this software.
 
-(ns dk.bestinclass.clojureql
+(ns dk.bestinclass.sql.backend
   (:import (java.sql DriverManager Driver SQLException)))
 
 ;; GLOBALS =================================================
@@ -47,14 +47,16 @@
            (catch SQLException exceptionSql#
              (println exceptionSql#))))))
 
-(defmacro with-result
-  [& body]
-  `(do ~@body))
+(defn with-results
+  [ast]
+  (resultset-seq
+   (.executeQuery
+    (compile-ast
+     ast))))
 
-(defmacro run-query
+(defmacro execute-sql
   [& body]
   `(do
      (with-connection
          (with-results
-          (compile-ast
-           ~@body)))))
+           ~@body))))
