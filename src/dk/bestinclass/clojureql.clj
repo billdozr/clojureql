@@ -12,6 +12,7 @@
 (ns dk.bestinclass.clojureql)
 
 
+
 ;; DEFINITIONS =============================================
 
 (defmulti sql* (fn [_ form] (first form)))
@@ -56,7 +57,7 @@
              (reslv col)))
          cols)))
 
-;; SQL-BUILDING ============================================
+;; AST-BUILDING ============================================
 
 (defmethod sql* 'query
   [env [_ col-spec table-spec pred-spec]]
@@ -82,7 +83,7 @@
 
 (defmacro sql
   " sql dispatches our Sql-Statement with all arguments fitted into
-    a hashmap.
+    a hashmap/AST.
 
    Ex.  (sql (query [developer language id] employees (= language 'Clojure'))) "
   ([form]
@@ -112,17 +113,11 @@
               (for [cherry cherries]
                 (str (nth lst cherry) " ")))))))
     
-;(defn- infixed
-;  " Takes a Lisp-style mathematical expression and converts the
-;    prefixed operator to an infixed one
-
-;    Ex. (infixed (or (> x 5) (< x 10)) => x > 5 OR x < 10 "
-;  [statement]
-;  (if (or (= (str (nth statement 0)) "or") (= (str (nth statement 0)) "and"))
-;    (cherry-pick (map #(cherry-pick % 1 0 2) statement) 1 0 2)
-;    (cherry-pick statement 1 0 2)))
-
 (defn- infixed
+  " Contributed by Chouser.
+
+    Ex: (infixed (and (> x 5) (< x 10))) =>
+                  X > 5 AND X < 10 "
   [e]
   (let [f (fn f [e]
             (if-not (list? e)
@@ -130,7 +125,7 @@
               (let [[p & r] e]
                 (if (= p `unquote)
                   r
-                  (apply concat (interpose [(str " " p " ")] (map f r)))))))]                  
+                  (apply concat (interpose [(str " " p " ")] (map f r)))))))]
     (apply str (f e))))
 
 (defmethod compile-ast ::Select
@@ -144,3 +139,13 @@
       (when-not (nil? (:predicates ast)))
         (str "WHERE " (infixed (:predicates ast)))))))
 
+
+;; TEST ====================================================
+
+(defn run-all
+  []
+  (println
+   (compile-ast                              ; This will not be a user-call
+    (sql (query [developer id]               ; Columns
+                developers                   ; Table(s)
+                (or (> id 5) (= id 3)))))))  ; Predicate(s)
