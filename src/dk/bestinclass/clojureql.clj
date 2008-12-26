@@ -17,7 +17,7 @@
 (defmulti compile-ast (fn [ast] (:type ast)))
 
 (defstruct sql-query
-  :type :columns :tables :predicates :column-aliases :table-aliases)
+  :type :columns :tables :predicates :column-aliases :table-aliases :sql)
 
 (defstruct sql-insert :type :table :values)
 
@@ -55,41 +55,6 @@
              (reslv col)))
          cols)))
 
-;; AST-BUILDING ============================================
-
-(defmethod sql* 'query
-  [env [_ col-spec table-spec pred-spec]]
-  (let [col-spec   (->vector col-spec)
-        col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
-                           col-spec)
-        col-spec   (map ->vector col-spec)
-        [col-spec col-aliases]
-                   (reduce check-alias [nil {}] col-spec)
-        table-spec (->vector table-spec)
-        table-spec (map ->vector table-spec)
-        [table-spec table-aliases]
-                   (reduce check-alias [nil {}] table-spec)]
-    (struct sql-query ::Select col-spec table-spec pred-spec
-            col-aliases table-aliases)))
-
-
-(defmethod sql* 'insert-into
-  [env [_ table & col-val-pairs]]
-  (if (even? (count col-val-pairs))
-    (struct sql-insert ::Insert table (apply hash-map col-val-pairs))
-    (throw (Exception. "column/value pairs not balanced"))))
-
-(defmacro sql
-  " sql dispatches our Sql-Statement with all arguments fitted into
-    a hashmap/AST.
-
-   Ex.  (sql (query [developer language id] employees (= language 'Clojure'))) "
-  ([form]
-   `(sql* (hash-map) ~(list 'quote form)))
-  ([vars form]
-   `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
-      (sql* env# ~(list 'quote form)))))
-
 ;; COMPILER ================================================
 
 (defn comma-separate
@@ -125,33 +90,102 @@
                   (apply concat (interpose [(str " " p " ")] (map f r)))))))]
     (apply str (f e))))
 
-(defmethod compile-ast ::Select
-  [ast]
-  (let [cols (str "(" (comma-separate (:columns ast)) ")")
-        tabs (str "(" (comma-separate (:tables ast))  ")")]                  
-    (.trim
-     (str
-      "SELECT " cols " "
-      "FROM "   tabs " "
-      (when-not (nil? (:predicates ast)))
-        (str "WHERE " (infixed (:predicates ast)))))))
+;(defmethod compile-ast ::Select
+;  [ast]
+;  (let [cols (str "(" (comma-separate (:columns ast)) ")")
+;        tabs (str "(" (comma-separate (:tables ast))  ")")]                  
+;    (.trim
+;     (str
+;      "SELECT " cols " "
+;      "FROM "   tabs " "
+;      (when-not (nil? (:predicates ast)))
+;      (str "WHERE " (infixed (:predicates ast)))))))))
 
+
+;; AST-BUILDING ============================================
+
+(defmethod sql* 'query
+  [env [_ col-spec table-spec pred-spec]]
+  (let [col-spec   (->vector col-spec)
+        col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
+                           col-spec)
+        col-spec   (map ->vector col-spec)
+        [col-spec col-aliases]
+                   (reduce check-alias [nil {}] col-spec)
+        table-spec (->vector table-spec)
+        table-spec (map ->vector table-spec)
+        [table-spec table-aliases]
+                   (reduce check-alias [nil {}] table-spec)]
+    (struct sql-query ::Select col-spec table-spec pred-spec
+            col-aliases table-aliases
+            (let [cols (str (comma-separate col-spec))
+                  tabs (str (comma-separate table-spec))]                  
+              (.trim
+               (str
+                "SELECT " cols " "
+                "FROM "   tabs " "
+                (when-not (nil? pred-spec)
+                  (str "WHERE " (infixed pred-spec)))))))))
+
+(defmethod sql* 'insert-into
+  [env [_ table & col-val-pairs]]
+  (if (even? (count col-val-pairs))
+    (struct sql-insert ::Insert table (apply hash-map col-val-pairs))
+    (throw (Exception. "column/value pairs not balanced"))))
+
+(defmacro sql
+  " sql dispatches our Sql-Statement with all arguments fitted into
+    a hashmap/AST.
+
+   Ex.  (sql (query [developer language id] employees (= language 'Clojure'))) "
+  ([form]
+   `(sql* (hash-map) ~(list 'quote form)))
+  ([vars form]
+   `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
+      (sql* env# ~(list 'quote form)))))
 
 ;; TEST ====================================================
 
 (defn run-all
   []
   (let [my-id 3]
-    (println
-     (compile-ast                               ; This will not be a user-call
-      (sql (query [developer id]                ; Columns
-                  developers                    ; Table(s)
-                  (or (> id 5)
-                      (and (= id ~myid)
-                           (> ~myid 7)))))))))  ; Predicate(s)
+    (dorun
+     (map println
+           (sql (query [developer id]                ; Columns
+                       developers                    ; Table(s)
+                       (or (> id 5)                  ; Predicate(s)
+                           (and (= id ~myid)
+                                (> ~myid 7)))))))    
+    (execute
+     (sql (query [id name]
+                 developers.employees
+                 (or (> id 7)
+                      (and (< id 5)
+                           (> id 3))))))))           ; Preds= [4, 8, 9, 10]
 
 
-
+(comment "
+dk.bestinclass.clojureql> (execute
+                           (sql
+                            (query [id name] developers.employees)))
+{:name Frank, :id 1}
+{:name Brian, :id 2}
+{:name John, :id 3}
+{:name Mark, :id 4}
+{:name Peter, :id 5}
+{:name Jack D., :id 6}
+{:name Mike, :id 7}
+{:name Vader, :id 8}
+{:name Arnold, :id 9}
+{:name Chouser, :id 10}
+dk.bestinclass.clojureql> (execute
+                           (sql
+                            (query [id name] developers.employees
+                                   (and (> id 5)
+                                        (< id 8)))))
+{:name Jack D., :id 6}
+{:name Mike, :id 7}
+")
 
 
 (comment "

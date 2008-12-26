@@ -39,18 +39,27 @@
                              ~(:protocol @*connection*)
                              ~(:host @*connection*))]
         (try
-         (with-open [con# (DriverManager/getConnection jdbc-url#
+         (with-open [open-con (DriverManager/getConnection jdbc-url#
                                                       ~(:username @*connection*)
                                                       ~(:password @*connection*))]
            ~@body)
            (catch SQLException exceptionSql#
              (println exceptionSql#))))))
 
-(defn with-results
-  [ast]
-  (resultset-seq
-   (.executeQuery
-     (:sql ast))))
+(defn execute
+    [ast]     
+     (Class/forName "com.mysql.jdbc.Driver")
+     (let [jdbc-url (format "jdbc:%s://%s"
+                             (:protocol @*connection*)
+                             (:host     @*connection*))]
+       (with-open [open-connection (DriverManager/getConnection jdbc-url
+                                                                (:username @*connection*)
+                                                                (:password @*connection*))
+                   prepped (.prepareStatement open-connection (:sql ast))
+                   rset (.executeQuery prepped)]
+         (doseq [r (resultset-seq rset)]
+           (println r)))))
+
 
 (defmacro execute-sql
   [& body]
