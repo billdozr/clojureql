@@ -9,7 +9,8 @@
 ;; terms of this license. You must not remove this notice, or any other, from
 ;; this software.
 
-(ns dk.bestinclass.clojureql)
+(ns dk.bestinclass.clojureql
+  (:require [dk.bestinclass.backend :as backend]))
 
 ;; DEFINITIONS =============================================
 
@@ -17,9 +18,9 @@
 (defmulti compile-ast (fn [ast] (:type ast)))
 
 (defstruct sql-query
-  :type :columns :tables :predicates :column-aliases :table-aliases :sql)
+  :type :columns :tables :predicates :column-aliases :table-aliases :env :sql)
 
-(defstruct sql-insert :type :table :values)
+(defstruct sql-insert :type :table :values :env :sql)
 
 ;; HELPERS =================================================
 
@@ -86,9 +87,20 @@
               [(str e)]
               (let [[p & r] e]
                 (if (= p `unquote)
-                  r
+                  "? "
+                  ;(str "@" (first r))
                   (apply concat (interpose [(str " " p " ")] (map f r)))))))]
     (apply str (f e))))
+
+(defn record
+  [expr]
+  (loop [expr expr env_record {}]
+    (if-not (list? expr)
+            env_record
+            (let [[t v & r] expr]
+              (if (list? v)
+                (recur r (assoc env_record (keyword (str (last v))) (eval (last v))))
+                (recur r env_record))))))
 
 ;(defmethod compile-ast ::Select
 ;  [ast]
@@ -115,11 +127,20 @@
         table-spec (->vector table-spec)
         table-spec (map ->vector table-spec)
         [table-spec table-aliases]
-                   (reduce check-alias [nil {}] table-spec)]
+                   (reduce check-alias [nil {}] table-spec)
+        build-env  (fn build-env [preds]
+                     (if (list? preds)
+                       (let [[p & r] preds]
+                         (if (= `unquote p)
+                           (let [nam     (str (first r))
+                                 val     (eval (first r))
+                                 cls     (class val)]
+                             [(hash-map :name nam :value val :type cls)])
+                           (map #(last (build-env %)) r)))))]
     (struct sql-query ::Select col-spec table-spec pred-spec
-            col-aliases table-aliases
+            col-aliases table-aliases (build-env pred-spec)
             (let [cols (str (comma-separate col-spec))
-                  tabs (str (comma-separate table-spec))]                  
+                  tabs (str (comma-separate table-spec))]               
               (.trim
                (str
                 "SELECT " cols " "
@@ -129,9 +150,10 @@
 
 (defmethod sql* 'insert-into
   [env [_ table & col-val-pairs]]
-  (if (even? (count col-val-pairs))
-    (struct sql-insert ::Insert table (apply hash-map col-val-pairs))
-    (throw (Exception. "column/value pairs not balanced"))))
+  (let [val-map  (apply hash-map col-val-pairs)]
+    (if (even? (count col-val-pairs))
+      (struct sql-insert ::Insert table (apply hash-map col-val-pairs) (record col-val-pairs))
+      (throw (Exception. "column/value pairs not balanced")))))
 
 (defmacro sql
   " sql dispatches our Sql-Statement with all arguments fitted into
@@ -144,118 +166,9 @@
    `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
       (sql* env# ~(list 'quote form)))))
 
-;; TEST ====================================================
 
-(defn run-all
+(defn test-insert
   []
-  (let [my-id 3]
-    (dorun
-     (map println
-           (sql (query [developer id]                ; Columns
-                       developers                    ; Table(s)
-                       (or (> id 5)                  ; Predicate(s)
-                           (and (= id ~myid)
-                                (> ~myid 7)))))))    
-    (execute
-     (sql (query [id name]
-                 developers.employees
-                 (or (> id 7)
-                      (and (< id 5)
-                           (> id 3))))))))           ; Preds= [4, 8, 9, 10]
-
-
-(comment "
-dk.bestinclass.clojureql> (execute
-                           (sql
-                            (query [id name] developers.employees)))
-{:name Frank, :id 1}
-{:name Brian, :id 2}
-{:name John, :id 3}
-{:name Mark, :id 4}
-{:name Peter, :id 5}
-{:name Jack D., :id 6}
-{:name Mike, :id 7}
-{:name Vader, :id 8}
-{:name Arnold, :id 9}
-{:name Chouser, :id 10}
-dk.bestinclass.clojureql> (execute
-                           (sql
-                            (query [id name] developers.employees
-                                   (and (> id 5)
-                                        (< id 8)))))
-{:name Jack D., :id 6}
-{:name Mike, :id 7}
-")
-
-
-(comment "
-  To replicate our test-table, run this on your MySQL server:
-
-  1) Make a database called developers. Add a user and give appropriate rights.
-     'USE developers;', and run the following:
-
-  CREATE TABLE `developers`.`employees` (
-  `id` int  NOT NULL AUTO_INCREMENT,
-  `name` varchar(100)  NOT NULL,
-  `language` varchar(100)  NOT NULL,
-  `effeciency` DOUBLE  NOT NULL,
-  `iq` int  NOT NULL,
-  PRIMARY KEY (`id`)
-  )
-  ENGINE = MyISAM
-  COMMENT = 'Table containing employee details for all current developers';
-
-INSERT INTO employees
-   (`id`, `name`, `language`, `effeciency`, `iq`)
-VALUES
-   (1, 'Frank', 'Python', 0.75, 85);
-
-INSERT INTO employees
-   (`id`, `name`, `language`, `effeciency`, `iq`)
-VALUES
-   (2, 'Brian', 'OCaml', 0.8, 110);
-
-INSERT INTO employees
-   (`id`, `name`, `language`, `effeciency`, `iq`)
-VALUES
-   (3, 'John', 'Fortran', 0.1, 120);
-
-INSERT INTO employees
-   (`id`, `name`, `language`, `effeciency`, `iq`)
-VALUES
-   (4, 'Mark', 'PHP', 0.71, 100);
-
-INSERT INTO employees
-   (`id`, `name`, `language`, `effeciency`, `iq`)
-VALUES
-   (5, 'Peter', 'SBCL', 0.9, 125);
-
-INSERT INTO employees
-   (`id`, `name`, `language`, `effeciency`, `iq`)
-VALUES
-   (6, 'Jack D.', 'Haskell', 0.2, 122);
-
-INSERT INTO employees
-   (`id`, `name`, `language`, `effeciency`, `iq`)
-VALUES
-   (7, 'Mike', 'C++', 0.002, 111);
-
-INSERT INTO employees
-   (`id`, `name`, `language`, `effeciency`, `iq`)
-VALUES
-   (8, 'Vader', 'Pure Evil', 0.99, 204);
-
-INSERT INTO employees
-   (`id`, `name`, `language`, `effeciency`, `iq`)
-VALUES
-   (9, 'Arnold', 'Cobol', 0.24, 100);
-
-INSERT INTO employees
-   (`id`, `name`, `language`, `effeciency`, `iq`)
-VALUES
-   (10, 'Chouser', 'Clojure', 1, 205);
-
-
-")
-
-
+  (let [xyz 5
+        abc 22]
+    (sql (insert-into foo :x "hi there" :y ~xyz :z ~abc))))
