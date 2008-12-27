@@ -9,7 +9,7 @@
 ;; terms of this license. You must not remove this notice, or any other, from
 ;; this software.
 
-(ns dk.bestinclass.clojureql
+(ns dk.bestinclass.backend
   (:import (java.sql DriverManager Driver SQLException)))
 
 ;; GLOBALS =================================================

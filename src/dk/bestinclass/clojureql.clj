@@ -58,6 +58,12 @@
 
 ;; COMPILER ================================================
 
+(defn pa
+  " pa=Print AST, helper func for debugging purposes "
+  [ast]
+  (dorun
+   (map println ast)))
+
 (defn comma-separate
   "Takes a sequence (list/vector) and seperates the elements by commas
 
@@ -133,12 +139,11 @@
                        (let [[p & r] preds]
                          (if (= `unquote p)
                            (let [nam     (str (first r))
-                                 val     (eval (first r))
-                                 cls     (class val)]
-                             [(hash-map :name nam :value val :type cls)])
-                           (map #(last (build-env %)) r)))))]
+                                 val     (eval (first r))]
+                             [(hash-map (keyword nam) val)])
+                         (map #(last (build-env %)) r)))))]
     (struct sql-query ::Select col-spec table-spec pred-spec
-            col-aliases table-aliases (build-env pred-spec)
+            col-aliases table-aliases (apply merge (build-env pred-spec))
             (let [cols (str (comma-separate col-spec))
                   tabs (str (comma-separate table-spec))]               
               (.trim
@@ -152,7 +157,10 @@
   [env [_ table & col-val-pairs]]
   (let [val-map  (apply hash-map col-val-pairs)]
     (if (even? (count col-val-pairs))
-      (struct sql-insert ::Insert table (apply hash-map col-val-pairs) (record col-val-pairs))
+      (struct sql-insert ::Insert table val-map (record col-val-pairs)
+              (let [val-names (apply str (interpose ", " (map #(str (name %)) (keys val-map))))
+                    values    (apply str (interpose ", " (map #(if (list? %) "?" %) (vals val-map))))]
+                (str "INSERT INTO " table " (" val-names ") VALUES (" values ")")))
       (throw (Exception. "column/value pairs not balanced")))))
 
 (defmacro sql
