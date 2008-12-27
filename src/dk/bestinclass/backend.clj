@@ -10,7 +10,9 @@
 ;; this software.
 
 (ns dk.bestinclass.backend
-  (:import (java.sql DriverManager Driver SQLException)))
+  (:import
+   (dk.bestinclass.clojureql)
+   (java.sql DriverManager Driver SQLException)))
 
 ;; GLOBALS =================================================
 
@@ -46,6 +48,27 @@
            (catch SQLException exceptionSql#
              (println exceptionSql#))))))
 
+(defn tmptmp
+  [a]
+  (let [x1 (str "@" (name (first a)))
+        x2 (second a)]
+    (println (str x1 "," x2))))
+
+(defn batch-add
+  [stmt env]
+  (when (pos? (count env))
+    (loop [env env x 1]
+      (when env
+        (let [cls     (class (val (first env)))
+              val     (val (first env))]
+          (cond (= Integer   cls)
+                (doto stmt (.setInt    x val))
+                (= String    cls)
+                (doto stmt (.setString x val)))
+          (recur (rest env) (inc x)))))
+    (. stmt addBatch)))
+
+
 (defn execute
     [ast]     
      (Class/forName "com.mysql.jdbc.Driver")
@@ -55,10 +78,11 @@
        (with-open [open-connection (DriverManager/getConnection jdbc-url
                                                                 (:username @*connection*)
                                                                 (:password @*connection*))
-                   prepped (.prepareStatement open-connection (:sql ast))
-                   rset (.executeQuery prepped)]
-         (doseq [r (resultset-seq rset)]
-           (println r)))))
+                   prepped (.prepareStatement open-connection (:sql ast))]
+         (batch-add prepped (:env ast))
+         (with-open [rset (.executeQuery prepped)]
+           (doseq [r (resultset-seq rset)]
+             (println r))))))
 
 
 (defmacro execute-sql

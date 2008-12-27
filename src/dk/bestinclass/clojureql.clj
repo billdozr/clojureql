@@ -20,7 +20,8 @@
 (defstruct sql-query
   :type :columns :tables :predicates :column-aliases :table-aliases :env :sql)
 
-(defstruct sql-insert :type :table :values :env :sql)
+(defstruct sql-insert
+  :type :table :values :env :sql)
 
 ;; HELPERS =================================================
 
@@ -108,18 +109,6 @@
                 (recur r (assoc env_record (keyword (str (last v))) (eval (last v))))
                 (recur r env_record))))))
 
-;(defmethod compile-ast ::Select
-;  [ast]
-;  (let [cols (str "(" (comma-separate (:columns ast)) ")")
-;        tabs (str "(" (comma-separate (:tables ast))  ")")]                  
-;    (.trim
-;     (str
-;      "SELECT " cols " "
-;      "FROM "   tabs " "
-;      (when-not (nil? (:predicates ast)))
-;      (str "WHERE " (infixed (:predicates ast)))))))))
-
-
 ;; AST-BUILDING ============================================
 
 (defmethod sql* 'query
@@ -158,7 +147,7 @@
   (let [val-map  (apply hash-map col-val-pairs)]
     (if (even? (count col-val-pairs))
       (struct sql-insert ::Insert table val-map (record col-val-pairs)
-              (let [val-names (apply str (interpose ", " (map #(str (name %)) (keys val-map))))
+              (let [val-names (apply str (interpose ", " (map #(str (name %))       (keys val-map))))
                     values    (apply str (interpose ", " (map #(if (list? %) "?" %) (vals val-map))))]
                 (str "INSERT INTO " table " (" val-names ") VALUES (" values ")")))
       (throw (Exception. "column/value pairs not balanced")))))
@@ -174,9 +163,3 @@
    `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
       (sql* env# ~(list 'quote form)))))
 
-
-(defn test-insert
-  []
-  (let [xyz 5
-        abc 22]
-    (sql (insert-into foo :x "hi there" :y ~xyz :z ~abc))))
