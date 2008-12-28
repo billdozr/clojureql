@@ -21,7 +21,7 @@
   :type :columns :tables :predicates :column-aliases :table-aliases :env :sql)
 
 (defstruct sql-insert
-  :type :table :values :env :sql)
+  :type :table :columns :env :sql)
 
 ;; HELPERS =================================================
 
@@ -204,15 +204,30 @@
   ([col-spec table-spec pred-spec]
    `(query* ~@(map quasiquote* [col-spec table-spec pred-spec]))))
 
-(defmethod sql* 'insert-into
-  [env [_ table & col-val-pairs]]
-  (let [val-map  (apply hash-map col-val-pairs)]
-    (if (even? (count col-val-pairs))
-      (struct sql-insert ::Insert table val-map (record col-val-pairs)
-              (let [val-names (apply str (interpose ", " (map #(str (name %))       (keys val-map))))
-                    values    (apply str (interpose ", " (map #(if (list? %) "?" %) (vals val-map))))]
-                (str "INSERT INTO " table " (" val-names ") VALUES (" values ")")))
-      (throw (Exception. "column/value pairs not balanced")))))
+(defn insert-into*
+  "Driver for the insert-into macro. Don't use directly."
+  [table & col-val-pairs]
+  (if (even? (count col-val-pairs))
+    (let [columns (take-nth 2 col-val-pairs)
+          values  (take-nth 2 (rest col-val-pairs))]
+      (struct-map sql-insert
+                  :type    ::Insert
+                  :table   table
+                  :columns columns
+                  :env     values
+                  :val-map (record col-val-pairs)
+                  :sql
+                  (str-cat " " ["INSERT INTO" table "("
+                                (str-cat "," columns)
+                                ") VALUES ("
+                                (str-cat "," (take (count columns) (repeat "?")))
+                                ")"])))
+    (throw (Exception. "column/value pairs not balanced"))))
+
+(defmacro insert-into
+  "Insert data into a table."
+  [table & col-val-pairs]
+  `(insert-into* ~@(map quasiquote* (cons table col-val-pairs))))
 
 (defmacro sql
   " sql dispatches our Sql-Statement with all arguments fitted into
