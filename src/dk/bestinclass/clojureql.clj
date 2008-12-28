@@ -57,6 +57,42 @@
              (reslv col)))
          cols)))
 
+(defn- self-eval?
+  "Check whether the given form is self-evaluating."
+  [f]
+  (or (keyword? f) (number? f) (instance? Character f) (string? f)))
+
+(defn- flatten-map
+  "Flatten the keys and values of a map into a list."
+  [m]
+  (reduce (fn [r e] (-> r (conj (key e)) (conj (val e)))) [] m))
+
+(defn- unquote?
+  "Tests whether the given form is of the form (unquote ...)."
+  [form]
+  (and (seq? f) (= (first f) `unquote)))
+
+(defn- quasiquote*
+  "Worker for quasiquote macro. See docstring there. For use in macros."
+  [form]
+  (cond
+    (self-eval? form) form
+    (unquote? form)   (second form)
+    (symbol? form)    (list 'quote form)
+    (vector? form)    (vec (map qq form))
+    (map? form)       (apply hash-map
+                             (map qq (flatten-map form)))
+    (set? form)       (apply hash-set (map qq form))
+    (seq? form)       (list* `list (map qq form))
+    :else             (list 'quote form)))
+
+(defmacro quasiquote
+  "Quote the supplied form as quote does, but evaluate unquoted parts.
+
+  Example: (let [x 5] (quasiquote (+ ~x 6))) => (+ 5 6)"
+  [form]
+  (quasiquote* form))
+
 ;; COMPILER ================================================
 
 (defn pa
