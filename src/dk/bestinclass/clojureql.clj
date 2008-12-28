@@ -14,9 +14,6 @@
 
 ;; DEFINITIONS =============================================
 
-(defmulti sql* (fn [_ form] (first form)))
-(defmulti compile-ast (fn [ast] (:type ast)))
-
 (defstruct sql-query
   :type :columns :tables :predicates :column-aliases :table-aliases :env :sql)
 
@@ -105,16 +102,6 @@
   (dorun
    (map println ast)))
 
-(defn cherry-pick
-  [lst & cherries]
-  (if (symbol? lst)
-    (.trim (str lst))
-    (when (< (reduce max cherries) (count lst))
-      (.trim
-       (apply str
-              (for [cherry cherries]
-                (str (nth lst cherry) " ")))))))
-
 (defn infixed
   " Contributed by Chouser.
 
@@ -126,16 +113,6 @@
               (str "(" (str-cat " " (interpose (first form) (map f (rest form)))) ")")
               (str form)))]
     (f form)))
-
-(defn record
-  [expr]
-  (loop [expr expr env_record {}]
-    (if-not (list? expr)
-            env_record
-            (let [[t v & r] expr]
-              (if (list? v)
-                (recur r (assoc env_record (keyword (str (last v))) (eval (last v))))
-                (recur r env_record))))))
 
 (let [and-or?    '#{or and}
       predicate? '#{= <= >= < > <> like}]
@@ -228,15 +205,3 @@
   "Insert data into a table."
   [table & col-val-pairs]
   `(insert-into* ~@(map quasiquote* (cons table col-val-pairs))))
-
-(defmacro sql
-  " sql dispatches our Sql-Statement with all arguments fitted into
-    a hashmap/AST.
-
-   Ex.  (sql (query [developer language id] employees (= language 'Clojure'))) "
-  ([form]
-   `(sql* (hash-map) (quasiquote ~form)))
-  ([vars form]
-   `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
-      (sql* env# (quasiquote ~form)))))
-
