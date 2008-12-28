@@ -70,7 +70,7 @@
 (defn- unquote?
   "Tests whether the given form is of the form (unquote ...)."
   [form]
-  (and (seq? f) (= (first f) `unquote)))
+  (and (seq? form) (= (first form) `unquote)))
 
 (defn- quasiquote*
   "Worker for quasiquote macro. See docstring there. For use in macros."
@@ -79,11 +79,10 @@
     (self-eval? form) form
     (unquote? form)   (second form)
     (symbol? form)    (list 'quote form)
-    (vector? form)    (vec (map qq form))
-    (map? form)       (apply hash-map
-                             (map qq (flatten-map form)))
-    (set? form)       (apply hash-set (map qq form))
-    (seq? form)       (list* `list (map qq form))
+    (vector? form)    (vec (map quasiquote* form))
+    (map? form)       (apply hash-map (map quasiquote* (flatten-map form)))
+    (set? form)       (apply hash-set (map quasiquote* form))
+    (seq? form)       (list* `list (map quasiquote* form))
     :else             (list 'quote form)))
 
 (defmacro quasiquote
@@ -120,17 +119,13 @@
   " Contributed by Chouser.
 
     Ex: (infixed (and (> x 5) (< x 10))) =>
-                  X > 5 AND X < 10 "
-  [e]
-  (let [f (fn f [e]
-            (if-not (list? e)
-              [(str e)]
-              (let [[p & r] e]
-                (if (= p `unquote)
-                  "? "
-                  ;(str "@" (first r))
-                  (apply concat (interpose [(str " " p " ")] (map f r)))))))]
-    (apply str (f e))))
+                  ((X > 5) AND (X < 10)) "
+  [form]
+  (let [f (fn f [form]
+            (if (vector? form)
+              (str "(" (str-cat " " (interpose (first form) (map f (rest form)))) ")")
+              (str form)))]
+    (f form)))
 
 (defn record
   [expr]
