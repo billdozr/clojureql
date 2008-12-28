@@ -93,6 +93,11 @@
   [form]
   (quasiquote* form))
 
+(defn str-cat
+  "Concate collection to a string. The member a separated by separator."
+  [sep coll]
+  (apply str (interpose sep coll)))
+
 ;; COMPILER ================================================
 
 (defn pa
@@ -100,14 +105,6 @@
   [ast]
   (dorun
    (map println ast)))
-
-(defn comma-separate
-  "Takes a sequence (list/vector) and seperates the elements by commas
-
-   Ex. (comma-separate ['hi 'there]) => 'hi,there' "
- [coll]
- (apply str
-        (interpose "," coll)))
 
 (defn cherry-pick
   [lst & cherries]
