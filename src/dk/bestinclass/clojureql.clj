@@ -162,7 +162,7 @@
     (struct sql-query ::Select col-spec table-spec pred-spec
             col-aliases table-aliases (apply merge (build-env pred-spec))
             (let [cols (str (comma-separate col-spec))
-                  tabs (str (comma-separate table-spec))]               
+                  tabs (str (comma-separate table-spec))]
               (.trim
                (str
                 "SELECT " cols " "
@@ -186,8 +186,8 @@
 
    Ex.  (sql (query [developer language id] employees (= language 'Clojure'))) "
   ([form]
-   `(sql* (hash-map) ~(list 'quote form)))
+   `(sql* (hash-map) (quasiquote ~form)))
   ([vars form]
    `(let [env# (into {} (list ~@(map #(vector (list 'quote %) %) vars)))]
-      (sql* env# ~(list 'quote form)))))
+      (sql* env# (quasiquote ~form)))))
 
