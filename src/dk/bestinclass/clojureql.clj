@@ -114,7 +114,7 @@
        (apply str
               (for [cherry cherries]
                 (str (nth lst cherry) " ")))))))
-    
+
 (defn infixed
   " Contributed by Chouser.
 
@@ -137,38 +137,72 @@
                 (recur r (assoc env_record (keyword (str (last v))) (eval (last v))))
                 (recur r env_record))))))
 
-;; AST-BUILDING ============================================
+(let [and-or?    '#{or and}
+      predicate? '#{= <= >= < > <> like}]
+  (defn build-env
+    "Build environment vector. Replace extracted values with ?."
+    [[f l r & more :as form] env]
+    (when f
+      (cond
+        (and-or? f)    (let [[rst env] (reduce
+                                         (fn [[rst env] more]
+                                           (let [[more env] (build-env more env)]
+                                             [(conj rst more) env]))
+                                         [[] env]
+                                         (rest form))]
+                         [(vec (cons f rst)) env])
+        (predicate? f) (if (self-eval? r)
+                         [[f l "?"] (conj env r)]
+                         [[f l r] env])
+        :else          (throw (Exception.
+                                (str "Unsupported predicate form: " f)))))))
 
-(defmethod sql* 'query
-  [env [_ col-spec table-spec pred-spec]]
+(defn compile-alias
+  [x aliases]
+  (if-let [a (aliases x)]
+    (str "(" x " AS " a ")")
+    (str x)))
+
+;; AST-BUILDING ============================================
+(defn query*
+  "Driver for the query macro. Don't call directly!"
+  [col-spec table-spec pred-spec]
   (let [col-spec   (->vector col-spec)
         col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
                            col-spec)
         col-spec   (map ->vector col-spec)
-        [col-spec col-aliases]
-                   (reduce check-alias [nil {}] col-spec)
+        [col-spec col-aliases]     (reduce check-alias [nil {}] col-spec)
+
         table-spec (->vector table-spec)
         table-spec (map ->vector table-spec)
-        [table-spec table-aliases]
-                   (reduce check-alias [nil {}] table-spec)
-        build-env  (fn build-env [preds]
-                     (if (list? preds)
-                       (let [[p & r] preds]
-                         (if (= `unquote p)
-                           (let [nam     (str (first r))
-                                 val     (eval (first r))]
-                             [(hash-map (keyword nam) val)])
-                         (map #(last (build-env %)) r)))))]
-    (struct sql-query ::Select col-spec table-spec pred-spec
-            col-aliases table-aliases (apply merge (build-env pred-spec))
-            (let [cols (str (comma-separate col-spec))
-                  tabs (str (comma-separate table-spec))]
-              (.trim
-               (str
-                "SELECT " cols " "
-                "FROM "   tabs " "
-                (when-not (nil? pred-spec)
-                  (str "WHERE " (infixed pred-spec)))))))))
+        [table-spec table-aliases] (reduce check-alias [nil {}] table-spec)
+
+        [pred-spec env]            (build-env pred-spec [])]
+    (struct-map sql-query
+                :type           ::Select
+                :columns        col-spec
+                :tables         table-spec
+                :predicates     pred-spec
+                :column-aliases col-aliases
+                :table-aliases  table-aliases
+                :env            env
+                :sql
+                (let [cols   (str-cat ","
+                               (map #(compile-alias % col-aliases) col-spec))
+                      tables (str-cat ","
+                               (map #(compile-alias % table-aliases) table-spec))
+                      stmnt  (list* "SELECT" cols
+                                    "FROM"   tables
+                                    (when pred-spec
+                                      (list "WHERE" (infixed pred-spec))))]
+                  (str-cat " " stmnt)))))
+
+(defmacro query
+  "Define a SELECT query."
+  ([col-spec table-spec]
+   `(query ~col-spec ~table-spec nil))
+  ([col-spec table-spec pred-spec]
+   `(query* ~@(map quasiquote* [col-spec table-spec pred-spec]))))
 
 (defmethod sql* 'insert-into
   [env [_ table & col-val-pairs]]
