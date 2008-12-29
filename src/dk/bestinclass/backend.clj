@@ -64,7 +64,7 @@
           (cond (= Integer   cls)
                 (doto stmt (.setInt    x val))
                 (= String    cls)
-                (doto stmt (.setString x val)))
+                (doto stmt (.setString x (str val))))
           (recur (rest env) (inc x)))))
     (. stmt addBatch)))
 

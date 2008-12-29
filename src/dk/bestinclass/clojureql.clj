@@ -134,7 +134,7 @@
     (struct sql-query ::Select col-spec table-spec pred-spec
             col-aliases table-aliases (apply merge (build-env pred-spec))
             (let [cols (str (comma-separate col-spec))
-                  tabs (str (comma-separate table-spec))]               
+                  tabs (str (comma-separate table-spec))]
               (.trim
                (str
                 "SELECT " cols " "
@@ -147,8 +147,8 @@
   (let [val-map  (apply hash-map col-val-pairs)]
     (if (even? (count col-val-pairs))
       (struct sql-insert ::Insert table val-map (record col-val-pairs)
-              (let [val-names (apply str (interpose ", " (map #(str (name %))       (keys val-map))))
-                    values    (apply str (interpose ", " (map #(if (list? %) "?" %) (vals val-map))))]
+              (let [val-names (apply str (interpose ", " (map #(str "'" (name %) "'")       (keys val-map))))
+                    values    (apply str (interpose ", " (map #(if (list? %) "?" %)         (vals val-map))))]
                 (str "INSERT INTO " table " (" val-names ") VALUES (" values ")")))
       (throw (Exception. "column/value pairs not balanced")))))
 
