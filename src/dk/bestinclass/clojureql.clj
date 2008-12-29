@@ -192,7 +192,6 @@
                   :table   table
                   :columns columns
                   :env     values
-                  :val-map (record col-val-pairs)
                   :sql
                   (str-cat " " ["INSERT INTO" table "("
                                 (str-cat "," columns)
