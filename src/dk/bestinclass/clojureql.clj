@@ -26,6 +26,9 @@
 (defstruct sql-delete
   :type :table :predicates :env :sql)
 
+(defstruct sql-ordered-query
+  :type :query :order :columns :env :sql)
+
 ;; HELPERS =================================================
 
 (defn- ->vector
@@ -255,3 +258,28 @@
   "Delete the entries matching the given predicates from the given table."
   [table pred-spec]
   `(delete-from* ~@(map quasiquote* [table pred-spec])))
+
+(defn order-by*
+  "Driver for the order-by macro. Don't call directly."
+  [kwery & columns]
+  (let [order   (first columns)
+        columns (vec (if (keyword? order) (drop 1 columns) columns))
+        order   (if (keyword? order) order :ascending)]
+    (struct-map sql-ordered-query
+                :type    ::OrderedSelect
+                :query   kwery
+                :order   order
+                :columns columns
+                :env     (kwery :env)
+                :sql     (str-cat " " [(kwery :sql)
+                                       "ORDER BY" (str-cat "," columns)
+                                       (condp = order
+                                         :ascending  "ASC"
+                                         :descending "DESC")]))))
+
+(defmacro order-by
+  "Modify the given query to be order according to the given columns. The first
+  argument may be one of the keywords :ascending or :descending to choose the
+  order used."
+  [kwery & columns]
+  `(order-by* ~kwery ~@(map quasiquote* columns)))
