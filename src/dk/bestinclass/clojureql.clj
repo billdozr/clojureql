@@ -20,6 +20,9 @@
 (defstruct sql-insert
   :type :table :columns :env :sql)
 
+(defstruct sql-update
+  :type :table :columns :predicates :env :sql)
+
 ;; HELPERS =================================================
 
 (defn- ->vector
@@ -204,3 +207,30 @@
   "Insert data into a table."
   [table & col-val-pairs]
   `(insert-into* ~@(map quasiquote* (cons table col-val-pairs))))
+
+(defn update*
+  "Driver for the update macro. Don't call directly."
+  [table col-val-pairs pred-spec]
+  (if (even? (count col-val-pairs))
+    (let [columns         (vec (take-nth 2 col-val-pairs))
+          values          (vec (take-nth 2 (rest col-val-pairs)))
+          [pred-spec env] (build-env pred-spec values)]
+      (struct-map sql-update
+                  :type       ::Update
+                  :table      table
+                  :columns    columns
+                  :predicates pred-spec
+                  :env        env
+                  :sql
+                  (str-cat " " ["UPDATE" table
+                                "SET"    (str-cat "," (map #(str % " = ?")
+                                                           columns))
+                                "WHERE"  (infixed pred-spec)])))
+    (throw (Exception. "column/value pairs not balanced"))))
+
+(defmacro update
+  "Update the given columns of the given table with the associated values
+  where the predicates are satisfied. The relation between columns and
+  values is given as a let-style binding vector."
+  [table col-val-pairs pred-spec]
+  `(update* ~@(map quasiquote* [table col-val-pairs pred-spec])))
