@@ -163,11 +163,11 @@
         col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
                            col-spec)
         col-spec   (map ->vector col-spec)
-        [col-spec col-aliases]     (reduce check-alias [nil {}] col-spec)
+        [col-spec col-aliases]     (reduce check-alias [[] {}] col-spec)
 
         table-spec (->vector table-spec)
         table-spec (map ->vector table-spec)
-        [table-spec table-aliases] (reduce check-alias [nil {}] table-spec)
+        [table-spec table-aliases] (reduce check-alias [[] {}] table-spec)
 
         [pred-spec env]            (build-env pred-spec [])]
     (struct-map sql-query
