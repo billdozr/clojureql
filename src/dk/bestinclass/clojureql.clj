@@ -41,19 +41,28 @@
   "Takes 1 argument and converts it into a vector"
   [x]
   (cond
-    (vector? x) x
-    (symbol? x) (vector x)
-    (string? x) (vector x)
-    :else       (throw (Exception.
-                         "only Symbols, Strings or Vectors are allowed"))))
+    (vector? x)  x
+    (string? x)  (vector x)
+    (symbol? x)  (vector x)
+    (keyword? x) (vector x)
+    :else        (throw (Exception.
+                          "only Symbols, Keywords, Strings or Vectors are allowed"))))
+
+(defn- ->string
+  "Converts the given thing to a string."
+  [thing]
+  (cond
+    (string? thing)  thing
+    (symbol? thing)  (name thing)
+    (keyword? thing) (name thing)
+    :else            (throw (Exception.
+                              "only Symbols, Keywords and Strings are allowed"))))
 
 (defn- check-alias
   [[specs aliases] [orig as aka]]
   (if (= as :as)
-    (vector (conj specs orig)
-            (conj aliases [orig aka]))
-    (vector (conj specs orig)
-            aliases)))
+    (vector (conj specs orig) (conj aliases [orig aka]))
+    (vector (conj specs orig) aliases)))
 
 (defn- fix-prefix
   " Takes a prefix and a series of columns and prepends the prefix
@@ -62,7 +71,7 @@
     Ex. (fix-prefix ['table1 'a 'b 'c]) => (table1.a table2.a table3.a) "
   [[prefix & cols]]
   (let [spref (name prefix)
-        reslv (fn [c] (symbol (str spref "." (name c))))]
+        reslv (fn [c] (symbol (str spref "." (->string c))))]
     (map (fn [col]
            (if (vector? col)
              (vec (cons (reslv (col 0)) (rest col)))
