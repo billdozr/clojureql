@@ -29,6 +29,9 @@
 (defstruct sql-ordered-query
   :type :query :order :columns :env :sql)
 
+(defstruct sql-distinct-query
+  :type :query :env :sql)
+
 ;; HELPERS =================================================
 
 (defn- ->vector
@@ -283,3 +286,12 @@
   order used."
   [kwery & columns]
   `(order-by* ~kwery ~@(map quasiquote* columns)))
+
+(defn distinct!
+  "Modify the given query to return only distinct results."
+  [kwery]
+  (struct-map sql-distinct-query
+              :type  ::DistinctQuery
+              :query kwery
+              :env   (kwery :env)
+              :sql   (apply str "SELECT DISTINCT" (drop 6 (kwery :sql)))))
