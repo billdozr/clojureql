@@ -32,6 +32,9 @@
 (defstruct sql-distinct-query
   :type :query :env :sql)
 
+(defstruct sql-union
+  :type :all :queries :env :sql)
+
 ;; HELPERS =================================================
 
 (defn- ->vector
@@ -295,3 +298,19 @@
               :query kwery
               :env   (kwery :env)
               :sql   (apply str "SELECT DISTINCT" (drop 6 (kwery :sql)))))
+
+(defn union
+  "Build the union of the given queries. The first argument may be the keyword
+  :all in order to include all results in the union. Without :all only distinct
+  results are included."
+  [& kweries]
+  (when kweries
+    (let [all     (= (first kweries) :all)
+          kweries (vec (if all (drop 1 kweries) kweries))]
+      (struct-map sql-union
+                  :type    ::Union
+                  :all     all
+                  :queries kweries
+                  :env     (vec (mapcat :env kweries))
+                  :sql     (str-cat " " (interpose (if all "UNION ALL" "UNION")
+                                                   (map :sql kweries)))))))
