@@ -23,6 +23,9 @@
 (defstruct sql-update
   :type :table :columns :predicates :env :sql)
 
+(defstruct sql-delete
+  :type :table :predicates :env :sql)
+
 ;; HELPERS =================================================
 
 (defn- ->vector
@@ -234,3 +237,21 @@
   values is given as a let-style binding vector."
   [table col-val-pairs pred-spec]
   `(update* ~@(map quasiquote* [table col-val-pairs pred-spec])))
+
+(defn delete-from*
+  "Driver for the delete-from macro. Don't call directly."
+  [table pred-spec]
+  (let [[pred-spec env] (build-env pred-spec [])]
+    (struct-map sql-delete
+                :type       ::Delete
+                :table      table
+                :predicates pred-spec
+                :env        env
+                :sql
+                (str-cat " " ["DELETE FROM" table
+                              "WHERE"       (infixed pred-spec)]))))
+
+(defmacro delete-from
+  "Delete the entries matching the given predicates from the given table."
+  [table pred-spec]
+  `(delete-from* ~@(map quasiquote* [table pred-spec])))
