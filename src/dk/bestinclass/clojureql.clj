@@ -127,9 +127,7 @@
    (map println ast)))
 
 (defn infixed
-  " Contributed by Chouser.
-
-    Ex: (infixed (and (> x 5) (< x 10))) =>
+  " Ex: (infixed (and (> x 5) (< x 10))) =>
                   ((X > 5) AND (X < 10)) "
   [form]
   (let [f (fn f [form]
@@ -229,8 +227,6 @@
   [table & col-val-pairs]
   `(insert-into* ~@(map quasiquote* (cons table col-val-pairs))))
 
-<<<<<<< HEAD:src/dk/bestinclass/clojureql.clj
-=======
 (defn update*
   "Driver for the update macro. Don't call directly."
   [table col-val-pairs pred-spec]
@@ -325,4 +321,4 @@
                   :env     (vec (mapcat :env kweries))
                   :sql     (str-cat " " (interpose (if all "UNION ALL" "UNION")
                                                    (map :sql kweries)))))))
->>>>>>> 72cc727a757647420f34c0c96bc87eef01c7907b:src/dk/bestinclass/clojureql.clj
+

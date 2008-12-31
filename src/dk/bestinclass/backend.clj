@@ -48,12 +48,6 @@
            (catch SQLException exceptionSql#
              (println exceptionSql#))))))
 
-(defn tmptmp
-  [a]
-  (let [x1 (str "@" (name (first a)))
-        x2 (second a)]
-    (println (str x1 "," x2))))
-
 (defn batch-add
   [stmt env]
   (when (pos? (count env))
@@ -84,6 +78,19 @@
            (doseq [r (resultset-seq rset)]
              (println r))))))
 
+(defmacro sql
+  [results ast & body]
+  `(do
+     (Class/forName "com.mysql.jdbc.Driver")
+     (let [jdbc-url#  (format "jdbc:%s//%s" ~(:protocol @*connection*)
+                                            ~(:host     @*connection*))]
+       (with-open [open-connection# (DriverManager/getConnection jdbc-url#
+                                                                 ~(:username @*connection*)
+                                                                 ~(:password @*connection*))
+                   prepStmt# (.prepareStatement open-connection# ~(:sql ast))]
+         (batch-add prepStmt# ~(:env ast))
+         (with-open [~results (resetset-seq (.executeQuery prepStmt#))]
+           ~@body)))))
 
 (defmacro execute-sql
   [& body]
