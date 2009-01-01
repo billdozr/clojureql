@@ -10,7 +10,7 @@
 ;; this software.
 
 (ns dk.bestinclass.clojureql
-  (:require [dk.bestinclass.backend :as backend]))
+  (:require [dk.bestinclass.backend :as sql]))
 
 ;; DEFINITIONS =============================================
 
@@ -322,3 +322,13 @@
                   :sql     (str-cat " " (interpose (if all "UNION ALL" "UNION")
                                                    (map :sql kweries)))))))
 
+
+(defn test-macs
+  []
+  (let [id   5
+        rez []]
+    (sql/run rez (query [id name] 
+                        developers.employees 
+                        (>= id ~id))
+             (doseq [i rez]
+               (println i)))))

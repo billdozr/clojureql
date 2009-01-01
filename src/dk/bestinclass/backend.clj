@@ -53,8 +53,8 @@
   (when (pos? (count env))
     (loop [env env x 1]
       (when env
-        (let [cls     (class (val (first env)))
-              val     (val (first env))]
+        (let [cls     (class (first env))
+              val     (first env)]
           (cond (= Integer   cls)
                 (doto stmt (.setInt    x val))
                 (= String    cls)
@@ -78,23 +78,21 @@
            (doseq [r (resultset-seq rset)]
              (println r))))))
 
-(defmacro sql
+(defmacro run
   [results ast & body]
   `(do
      (Class/forName "com.mysql.jdbc.Driver")
-     (let [jdbc-url#  (format "jdbc:%s//%s" ~(:protocol @*connection*)
-                                            ~(:host     @*connection*))]
-       (with-open [open-connection# (DriverManager/getConnection jdbc-url#
+     (let [jdbc-url#  (format "jdbc:%s://%s" ~(:protocol @*connection*)
+                                             ~(:host     @*connection*))]
+       (with-open [open-connection# (java.sql.DriverManager/getConnection jdbc-url#
                                                                  ~(:username @*connection*)
                                                                  ~(:password @*connection*))
-                   prepStmt# (.prepareStatement open-connection# ~(:sql ast))]
-         (batch-add prepStmt# ~(:env ast))
-         (with-open [~results (resetset-seq (.executeQuery prepStmt#))]
-           ~@body)))))
+                   prepStmt# (.prepareStatement open-connection#  (:sql ~ast))]
+         (batch-add prepStmt# (:env ~ast))
+         (with-open [feed# (.executeQuery prepStmt#)]
+           (let [~results (resultset-seq feed#)]
+             ~@body))))))
 
-(defmacro execute-sql
-  [& body]
-  `(do
-     (with-connection
-         (with-results
-           ~@body))))
+
+
+
