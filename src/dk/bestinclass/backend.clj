@@ -80,16 +80,21 @@
     (. stmt addBatch)))
 
 (defmacro run
-  " Takes 3 arguments: A container for the results returned by the query
+  " Takes 2 arguments: A vector whos first element is connection-info and the second
+                       is a placeholder for the results returned by the query, the third
+                       and final element is an AST produced by Query.
                        An AST produced by (query ...)
                        A body for execution which has access to the results.
 
-    Ex: (let [myresults []]
+    Ex: (let [db1 (connect-info ...) myresults []]
           (run myresults (query [col1 col2] database.table1 (> col1 col2))
              (doseq [result myresults]
               (do x y z to 'result')))) "              
-  [results ast & body]
+  [vec & body]
   `(do
+     (let [connection#  ~(first vec)
+           results      ~(second vec)
+           ast          ~(last vec)]
      (Class/forName "com.mysql.jdbc.Driver")
      (let [jdbc-url#  (format "jdbc:%s://%s" ~(:protocol @*connection*)
                                              ~(:host     @*connection*))]
