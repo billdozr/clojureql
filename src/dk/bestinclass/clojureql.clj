@@ -325,10 +325,12 @@
 
 (defn test-macs
   []
-  (let [id   5
+  (let [id   6
         rez []]
     (sql/run rez (query [id name] 
-                        developers.employees 
-                        (>= id ~id))
-             (doseq [i rez]
+                        developers.employees
+                        (and (>= id 3)
+                             (or (= id 1)
+                                 (<= id ~id))))
+                  (doseq [i rez]
                (println i)))))

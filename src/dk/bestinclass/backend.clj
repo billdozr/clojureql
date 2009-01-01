@@ -48,6 +48,7 @@
            (catch SQLException exceptionSql#
              (println exceptionSql#))))))
 
+
 (defn batch-add
   [stmt env]
   (when (pos? (count env))
@@ -55,30 +56,38 @@
       (when env
         (let [cls     (class (first env))
               val     (first env)]
-          (cond (= Integer   cls)
-                (doto stmt (.setInt    x val))
-                (= String    cls)
-                (doto stmt (.setString x (str val))))
+          (cond (= Integer                cls)
+                (doto stmt (.setInt       x val))
+                (= String                 cls)
+                (doto stmt (.setString    x (str val)))
+                (= java.util.Date         cls)
+                (doto stmt (.setDate      x val))
+                (= Double                 cls)
+                (doto stmt (.setDouble    x val))
+                (= Float                  cls)
+                (doto stmt (.setFloat     x val))
+                (= Long                   cls)
+                (doto stmt (.setLong      x val))
+                (= Short                  cls)
+                (doto stmt (.setShort     x val))
+                (= java.sql.Time          cls)
+                (doto stmt (.setTime      x val))
+                (= java.sql.Timestamp     cls)
+                (doto stmt (.setTimestamp x val))
+                (= java.net.URL           cls)
+                (doto stmt (.setURL       x val)))
           (recur (rest env) (inc x)))))
     (. stmt addBatch)))
 
-
-(defn execute
-    [ast]     
-     (Class/forName "com.mysql.jdbc.Driver")
-     (let [jdbc-url (format "jdbc:%s://%s"
-                             (:protocol @*connection*)
-                             (:host     @*connection*))]
-       (with-open [open-connection (DriverManager/getConnection jdbc-url
-                                                                (:username @*connection*)
-                                                                (:password @*connection*))
-                   prepped (.prepareStatement open-connection (:sql ast))]
-         (batch-add prepped (:env ast))
-         (with-open [rset (.executeQuery prepped)]
-           (doseq [r (resultset-seq rset)]
-             (println r))))))
-
 (defmacro run
+  " Takes 3 arguments: A container for the results returned by the query
+                       An AST produced by (query ...)
+                       A body for execution which has access to the results.
+
+    Ex: (let [myresults []]
+          (run myresults (query [col1 col2] database.table1 (> col1 col2))
+             (doseq [result myresults]
+              (do x y z to 'result')))) "              
   [results ast & body]
   `(do
      (Class/forName "com.mysql.jdbc.Driver")
