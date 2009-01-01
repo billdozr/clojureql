@@ -34,7 +34,7 @@
            x   1]
       (when env
         (let [value (first env)]
-          (condp = (class value)
+          (condp instance? value
             String             (.setString    stmt x value)
             Float              (.setFloat     stmt x value)
             Double             (.setDouble    stmt x value)
