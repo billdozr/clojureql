@@ -30,30 +30,21 @@
 (defn batch-add
   [stmt env]
   (when (pos? (count env))
-    (loop [env env x 1]
+    (loop [env env
+           x   1]
       (when env
-        (let [cls     (class (first env))
-              val     (first env)]
-          (cond (= Integer                cls)
-                (doto stmt (.setInt       x val))
-                (= String                 cls)
-                (doto stmt (.setString    x (str val)))
-                (= java.util.Date         cls)
-                (doto stmt (.setDate      x val))
-                (= Double                 cls)
-                (doto stmt (.setDouble    x val))
-                (= Float                  cls)
-                (doto stmt (.setFloat     x val))
-                (= Long                   cls)
-                (doto stmt (.setLong      x val))
-                (= Short                  cls)
-                (doto stmt (.setShort     x val))
-                (= java.sql.Time          cls)
-                (doto stmt (.setTime      x val))
-                (= java.sql.Timestamp     cls)
-                (doto stmt (.setTimestamp x val))
-                (= java.net.URL           cls)
-                (doto stmt (.setURL       x val)))
+        (let [value (first env)]
+          (condp = (class value)
+            String             (.setString    stmt x value)
+            Float              (.setFloat     stmt x value)
+            Double             (.setDouble    stmt x value)
+            Long               (.setLong      stmt x value)
+            Short              (.setShort     stmt x value)
+            Integer            (.setInt       stmt x value)
+            java.net.Url       (.setUrl       stmt x value)
+            java.util.Date     (.setDate      stmt x value)
+            java.sql.Time      (.setTime      stmt x value)
+            java.sql.Timestamp (.setTimestamp stmt x value))
           (recur (rest env) (inc x)))))
     (. stmt addBatch)))
 
