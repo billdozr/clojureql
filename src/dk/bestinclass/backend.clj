@@ -14,40 +14,18 @@
    (dk.bestinclass.clojureql)
    (java.sql DriverManager Driver SQLException)))
 
-;; GLOBALS =================================================
-
-(defstruct sql-connection
-  :host
-  :protocol
-  :username
-  :password
-  :connection)
-
-(def *connection* (ref (struct sql-connection
-                               "127.0.0.1/mysql"       ; Host
-                               "mysql"                 ; protocol
-                               "testql"                ; Username
-                               "test"                  ; Password
-                               false)))
-
-
 ;; CONNECTION ==============================================
 
-(defmacro with-connection
-  [& body]
-  `(do
-     (Class/forName "com.mysql.jdbc.Driver")
-     (let [jdbc-url# (format "jdbc:%s://%s"
-                             ~(:protocol @*connection*)
-                             ~(:host @*connection*))]
-        (try
-         (with-open [open-con (DriverManager/getConnection jdbc-url#
-                                                      ~(:username @*connection*)
-                                                      ~(:password @*connection*))]
-           ~@body)
-           (catch SQLException exceptionSql#
-             (println exceptionSql#))))))
+(defstruct connection-info
+  :jdbc-url
+  :username
+  :password)
 
+(defn connect-info
+  [protocol host username password]
+  (struct connection-info (format "jdbc:%s://%s" protocol host) username password))
+
+;; MACROS ==================================================
 
 (defn batch-add
   [stmt env]
@@ -91,17 +69,15 @@
              (doseq [result myresults]
               (do x y z to 'result')))) "              
   [vec & body]
-  `(do
-     (let [connection#  ~(first vec)
-           results      ~(second vec)
-           ast          ~(last vec)]
-     (Class/forName "com.mysql.jdbc.Driver")
-     (let [jdbc-url#  (format "jdbc:%s://%s" ~(:protocol @*connection*)
-                                             ~(:host     @*connection*))]
-       (with-open [open-connection# (java.sql.DriverManager/getConnection jdbc-url#
-                                                                 ~(:username @*connection*)
-                                                                 ~(:password @*connection*))
-                   prepStmt# (.prepareStatement open-connection#  (:sql ~ast))]
+  (let [connection (first vec)
+        results    (second vec)
+        ast        (last vec)]
+    `(do
+       (Class/forName "com.mysql.jdbc.Driver")
+       (with-open [open-connection# (java.sql.DriverManager/getConnection (:jdbc-url ~connection)
+                                                                          (:username ~connection)
+                                                                          (:password ~connection))
+                   prepStmt# (.prepareStatement open-connection#          (:sql ~ast))]
          (batch-add prepStmt# (:env ~ast))
          (with-open [feed# (.executeQuery prepStmt#)]
            (let [~results (resultset-seq feed#)]
