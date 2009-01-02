@@ -48,6 +48,17 @@
           (recur (rest env) (inc x)))))
     (. stmt addBatch)))
 
+(defmacro with-connection
+  [connection-info connection & body]
+   `(do
+      (Class/forName "com.mysql.jdbc.Driver")
+      (with-open [~connection (java.sql.DriverManager/getConnection
+                               (:jdbc-url ~connection-info)
+                               (:username ~connection-info)
+                               (:password ~connection-info))]
+        ~@body)))
+   
+
 (defmacro run
   " Takes 2 arguments: A vector whos first element is connection-info and the second
                        is a placeholder for the results returned by the query, the third
@@ -60,15 +71,11 @@
              (doseq [result myresults]
               (do x y z to 'result')))) "              
   [vec & body]
-  (let [connection (first vec)
-        results    (second vec)
-        ast        (last vec)]
-    `(do
-       (Class/forName "com.mysql.jdbc.Driver")
-       (with-open [open-connection# (java.sql.DriverManager/getConnection (:jdbc-url ~connection)
-                                                                          (:username ~connection)
-                                                                          (:password ~connection))
-                   prepStmt# (.prepareStatement open-connection#          (:sql ~ast))]
+  (let [connection-info (first vec)
+        results         (second vec)
+        ast             (last vec)]
+    `(with-connection ~connection-info open-connection#
+       (let [prepStmt# (.prepareStatement open-connection# (:sql ~ast))]
          (batch-add prepStmt# (:env ~ast))
          (with-open [feed# (.executeQuery prepStmt#)]
            (let [~results (resultset-seq feed#)]
