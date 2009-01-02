@@ -60,27 +60,33 @@
    
 
 (defmacro run
-  " Takes 2 arguments: A vector whos first element is connection-info and the second
-                       is a placeholder for the results returned by the query, the third
-                       and final element is an AST produced by Query.
-                       An AST produced by (query ...)
-                       A body for execution which has access to the results.
+  " Takes 3 arguments: A vector whos first element is connection-info and the second
+                       is a placeholder for the results returned by the query
 
-    Ex: (let [db1 (connect-info ...) myresults []]
-          (run myresults (query [col1 col2] database.table1 (> col1 col2))
-             (doseq [result myresults]
-              (do x y z to 'result')))) "              
-  [vec & body]
+                       The second argument is an AST produced by Query.
+                       Finally, a body for execution which has access to the results.
+
+    Ex: (let [db1 (connect-info ...)]
+          (run [db1 myresults]
+           (query [col1 col2] database.table1 (> col1 col2))
+           (doseq [result myresults]
+              (do x y z to 'result'))) "
+  [vec ast & body]
   (let [connection-info (first vec)
-        results         (second vec)
-        ast             (last vec)]
+        results         (second vec)]        
     `(with-connection ~connection-info open-connection#
        (let [prepStmt# (.prepareStatement open-connection# (:sql ~ast))]
          (batch-add prepStmt# (:env ~ast))
-         (with-open [feed# (.executeQuery prepStmt#)]
-           (let [~results (resultset-seq feed#)]
-             ~@body))))))
-
+         (condp = (~ast :type)
+                :dk.bestinclass.clojureql/Select
+                (do
+                  (with-open [feed# (.executeQuery prepStmt#)]
+                    (let [~results (resultset-seq feed#)]
+                      ~@body)))
+                :dk.bestinclass.clojureql/Insert
+                (.executeUpdate prepStmt#)
+                :else
+                (.execute prepStmt#))))))
 
 
 
