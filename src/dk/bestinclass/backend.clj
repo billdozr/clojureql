@@ -71,7 +71,7 @@
            (doseq [result myresults]
              (do x y z to 'result')))
         - or -  
-        (run db1 (insert-into table1 name 'Frank')) "
+        (run db1 (insert-into table1 name 'Frank' age 22)) "
   ([vec ast & body]
      (let [connection-info (first vec)
            results         (second vec)]        
