@@ -41,7 +41,7 @@
             Long               (.setLong      stmt x value)
             Short              (.setShort     stmt x value)
             Integer            (.setInt       stmt x value)
-            java.net.Url       (.setUrl       stmt x value)
+            java.net.URL       (.setUrl       stmt x value)
             java.util.Date     (.setDate      stmt x value)
             java.sql.Time      (.setTime      stmt x value)
             java.sql.Timestamp (.setTimestamp stmt x value))

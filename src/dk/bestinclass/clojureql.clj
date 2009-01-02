@@ -42,6 +42,7 @@
   [x]
   (cond
     (vector? x)  x
+    (list? x)    (vector x)
     (string? x)  (vector x)
     (symbol? x)  (vector x)
     (keyword? x) (vector x)
@@ -65,18 +66,27 @@
     (vector (conj specs orig) aliases)))
 
 (defn- fix-prefix
-  " Takes a prefix and a series of columns and prepends the prefix
-    to every column.
+  "Takes a prefix and a series of columns and prepends the prefix to
+  every column. Example:
 
-    Ex. (fix-prefix ['table1 'a 'b 'c]) => (table1.a table2.a table3.a) "
-  [[prefix & cols]]
-  (let [spref (name prefix)
-        reslv (fn [c] (symbol (str spref "." (->string c))))]
-    (map (fn [col]
-           (if (vector? col)
-             (vec (cons (reslv (col 0)) (rest col)))
-             (reslv col)))
-         cols)))
+    (fix-prefix '[table1 :cols a b c]) => (table1.a table2.a table3.a)"
+  [col-spec]
+  (if (vector? col-spec)
+    (let [[prefix prefix-for & cols] col-spec]
+      (if (= prefix-for :cols)
+        (let [spref (->string prefix)
+              reslv (fn reslv [c]
+                      (if (list? c)
+                        (let [[f c & r] c]
+                          (list* f (reslv c) r))
+                        (symbol (str spref "." (->string c)))))]
+          (map (fn [col]
+                 (if (vector? col)
+                   (vec (cons (reslv (col 0)) (rest col)))
+                   (reslv col)))
+               cols))
+        [col-spec]))
+    [col-spec]))
 
 (defn- self-eval?
   "Check whether the given form is self-evaluating."
@@ -157,18 +167,38 @@
                                 (str "Unsupported predicate form: " f)))))))
 
 (defn compile-alias
+  "Checks whether the given column has an alias in the aliases map. If so
+  it is converted to a SQL alias of the form „column AS alias“."
   [x aliases]
   (if-let [a (aliases x)]
     (str "(" x " AS " a ")")
-    (str x)))
+    x))
+
+(defn- sql-function-type
+  "Returns the type of the given SQL function. This is basically only
+  interesting to catch the mathematical operators, which are infixed.
+  Other function calls are handled normally."
+  [sql-fun]
+  (if (#{"+" "-" "*" "/"} (->string sql-fun))
+    :infix
+    :funcall))
+
+(defn compile-function
+  [x]
+  "Compile a function specification into a string."
+  (if (list? x)
+    (let [[f c & args] x]
+      (if (= (sql-function-type f) :infix)
+        (str-cat " " (interpose f (cons c args)))
+        (str f "(" c (str-cat "," args) ")")))
+    x))
 
 ;; AST-BUILDING ============================================
 (defn query*
   "Driver for the query macro. Don't call directly!"
   [col-spec table-spec pred-spec]
   (let [col-spec   (->vector col-spec)
-        col-spec   (mapcat (fn [s] (if (seq? s) (fix-prefix s) (list s)))
-                           col-spec)
+        col-spec   (mapcat fix-prefix col-spec)
         col-spec   (map ->vector col-spec)
         [col-spec col-aliases]     (reduce check-alias [[] {}] col-spec)
 
@@ -187,9 +217,14 @@
                 :env            env
                 :sql
                 (let [cols   (str-cat ","
-                               (map #(compile-alias % col-aliases) col-spec))
+                               (map (comp str
+                                          compile-function
+                                          #(compile-alias % col-aliases))
+                                    col-spec))
                       tables (str-cat ","
-                               (map #(compile-alias % table-aliases) table-spec))
+                               (map (comp str
+                                          #(compile-alias % table-aliases))
+                                    table-spec))
                       stmnt  (list* "SELECT" cols
                                     "FROM"   tables
                                     (when pred-spec
@@ -321,5 +356,3 @@
                   :env     (vec (mapcat :env kweries))
                   :sql     (str-cat " " (interpose (if all "UNION ALL" "UNION")
                                                    (map :sql kweries)))))))
-
-
