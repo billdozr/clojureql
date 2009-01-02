@@ -1,5 +1,5 @@
-;; Copyright (c) 2008 Lau B. Jensen <lau.jensen {at} bestinclass.dk
-;;                    Meikel Brandmeyer <mb {at} kotka.de>
+;; Copyright (c) 2008,2009 Lau B. Jensen <lau.jensen {at} bestinclass.dk
+;;                         Meikel Brandmeyer <mb {at} kotka.de>
 ;; All rights reserved.
 ;;
 ;; The use and distribution terms for this software are covered by the
@@ -9,10 +9,7 @@
 ;; terms of this license. You must not remove this notice, or any other, from
 ;; this software.
 
-(ns dk.bestinclass.backend
-  (:import
-   (dk.bestinclass.clojureql)
-   (java.sql DriverManager Driver SQLException)))
+(clojure.core/in-ns 'dk.bestinclass.clojureql)
 
 ;; CONNECTION ==============================================
 
