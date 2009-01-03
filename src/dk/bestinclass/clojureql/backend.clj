@@ -45,10 +45,16 @@
           (recur (rest env) (inc x)))))
     (. stmt addBatch)))
 
+(defn load-driver
+  "Load the named JDBC driver. Has to be called once before accessing
+  the database."
+  [driver]
+  (Class/forName driver)
+  nil)
+
 (defmacro with-connection
   [connection-info connection & body]
    `(do
-      (Class/forName "com.mysql.jdbc.Driver")
       (with-open [~connection (java.sql.DriverManager/getConnection
                                (:jdbc-url ~connection-info)
                                (:username ~connection-info)
