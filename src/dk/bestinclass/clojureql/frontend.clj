@@ -170,7 +170,7 @@
   it is converted to a SQL alias of the form „column AS alias“."
   [x aliases]
   (if-let [a (aliases x)]
-    (str "(" x " AS " a ")")
+    (str "(" (->string x) " AS " (->string a) ")")
     x))
 
 (defn- sql-function-type
@@ -188,8 +188,8 @@
   (if (list? x)
     (let [[f c & args] x]
       (if (= (sql-function-type f) :infix)
-        (str-cat " " (interpose f (cons c args)))
-        (str f "(" c (str-cat "," args) ")")))
+        (str-cat " " (interpose f (cons (->string c) args)))
+        (str f "(" (->string c) (str-cat "," args) ")")))
     x))
 
 ;; AST-BUILDING ============================================
@@ -216,12 +216,12 @@
                 :env            env
                 :sql
                 (let [cols   (str-cat ","
-                               (map (comp str
+                               (map (comp ->string
                                           compile-function
                                           #(compile-alias % col-aliases))
                                     col-spec))
                       tables (str-cat ","
-                               (map (comp str
+                               (map (comp ->string
                                           #(compile-alias % table-aliases))
                                     table-spec))
                       stmnt  (list* "SELECT" cols
@@ -250,7 +250,7 @@
                   :env     values
                   :sql
                   (str-cat " " ["INSERT INTO" table "("
-                                (str-cat "," columns)
+                                (str-cat "," (map ->string columns))
                                 ") VALUES ("
                                 (str-cat "," (take (count columns) (repeat "?")))
                                 ")"])))
@@ -276,7 +276,9 @@
                   :env        env
                   :sql
                   (str-cat " " ["UPDATE" table
-                                "SET"    (str-cat "," (map #(str % " = ?")
+                                "SET"    (str-cat "," (map (comp
+                                                             #(str % " = ?")
+                                                             ->string)
                                                            columns))
                                 "WHERE"  (infixed pred-spec)])))
     (throw (Exception. "column/value pairs not balanced"))))
@@ -319,7 +321,8 @@
                 :columns columns
                 :env     (kwery :env)
                 :sql     (str-cat " " [(kwery :sql)
-                                       "ORDER BY" (str-cat "," columns)
+                                       "ORDER BY"
+                                       (str-cat "," (map ->string columns))
                                        (condp = order
                                          :ascending  "ASC"
                                          :descending "DESC")]))))
