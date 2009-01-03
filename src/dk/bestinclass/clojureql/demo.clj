@@ -64,9 +64,13 @@
 (defn -main
   [& args]
   (sql/load-driver *driver*)
-;  (insert-data)
-  (sql/run [*conn-info* results]
-           (sql/query [id name language efficiency] roster.employees (> efficiency 0.5))
-           (doseq [row results]
+  (insert-data)                              ; First populate the DB
+  (sql/run [*conn-info* results]             ; Then execute some SQL and work with the results
+           (sql/order-by                     ; Order our return by...
+            (sql/query [id name language efficiency]  ; Columns to fetch
+                       roster.employees               ; Schema/Db
+                       (> efficiency 0.5))            ; Taking only effecient developers
+            efficiency)   ;... the columns 'efficiency'.
+           (doseq [row results]   ; The rest is up to you
              (println row))))
 

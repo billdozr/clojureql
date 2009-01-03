@@ -14,7 +14,7 @@
 ;; CONNECTION ==============================================
 
 (defstruct connection-info
-  :jdbc-url1
+  :jdbc-url
   :username
   :password)
 
@@ -54,12 +54,11 @@
 
 (defmacro with-connection
   [connection-info connection & body]
-   `(do
-      (with-open [~connection (java.sql.DriverManager/getConnection
-                               (:jdbc-url ~connection-info)
-                               (:username ~connection-info)
-                               (:password ~connection-info))]
-        ~@body)))
+  `(with-open [~connection (java.sql.DriverManager/getConnection
+                            (:jdbc-url ~connection-info)
+                            (:username ~connection-info)
+                            (:password ~connection-info))]
+     ~@body))
    
 (defmacro run
   " Takes 3 arguments: A vector whos first element is connection-info and the second
