@@ -38,15 +38,15 @@
 
 (defn- ->vector
   "Takes 1 argument and converts it into a vector"
-  [x]
+  [thing]
   (cond
-    (vector? x)  x
-    (list? x)    (vector x)
-    (string? x)  (vector x)
-    (symbol? x)  (vector x)
-    (keyword? x) (vector x)
-    :else        (throw (Exception.
-                          "only Symbols, Keywords, Strings or Vectors are allowed"))))
+    (vector? thing)  thing
+    (list? thing)    (vector thing)
+    (string? thing)  (vector thing)
+    (symbol? thing)  (vector thing)
+    (keyword? thing) (vector thing)
+    :else (throw (Exception.
+                   "only Symbols, Keywords, Strings or Vectors are allowed"))))
 
 (defn- ->string
   "Converts the given thing to a string."
@@ -66,36 +66,43 @@
 
 (defn- fix-prefix
   "Takes a prefix and a series of columns and prepends the prefix to
-  every column. Example:
+  every column.
 
-    (fix-prefix '[table1 :cols a b c]) => (table1.a table2.a table3.a)"
+  Example:
+    (fix-prefix '[table1 :cols a b c]) => (table1.a table1.b table1.c)"
   [col-spec]
   (if (vector? col-spec)
     (let [[prefix prefix-for & cols] col-spec]
       (if (= prefix-for :cols)
-        (let [spref (->string prefix)
-              reslv (fn reslv [c]
-                      (if (list? c)
-                        (let [[f c & r] c]
-                          (list* f (reslv c) r))
-                        (symbol (str spref "." (->string c)))))]
+        (let [str-prefix   (->string prefix)
+              resolve-spec (fn resolve-spec [col]
+                             (if (list? col)
+                               (let [[function col & rst] col]
+                                 (list* function (resolve-spec col) rst))
+                               (symbol (str str-prefix "." (->string col)))))]
           (map (fn [col]
                  (if (vector? col)
-                   (vec (cons (reslv (col 0)) (rest col)))
-                   (reslv col)))
+                   (vec (cons (resolve-spec (first col)) (rest col)))
+                   (resolve-spec col)))
                cols))
         [col-spec]))
     [col-spec]))
 
 (defn- self-eval?
   "Check whether the given form is self-evaluating."
-  [f]
-  (or (keyword? f) (number? f) (instance? Character f) (string? f)))
+  [thing]
+  (or (keyword? thing)
+      (number? thing)
+      (instance? Character thing)
+      (string? thing)))
 
 (defn- flatten-map
   "Flatten the keys and values of a map into a list."
-  [m]
-  (reduce (fn [r e] (-> r (conj (key e)) (conj (val e)))) [] m))
+  [the-map]
+  (reduce (fn [result entry] (-> result
+                               (conj (key entry))
+                               (conj (val entry))))
+          [] the-map))
 
 (defn- unquote?
   "Tests whether the given form is of the form (unquote ...)."
@@ -132,8 +139,8 @@
 (defn pa
   " pa=Print AST, helper func for debugging purposes "
   [ast]
-  (dorun
-   (map println ast)))
+  (doseq [entry ast]
+    (prn entry)))
 
 (defn infixed
   " Ex: (infixed (and (> x 5) (< x 10))) =>
@@ -145,33 +152,34 @@
               (str form)))]
     (f form)))
 
-(let [and-or?    '#{or and}
-      predicate? '#{= <= >= < > <> like}]
-  (defn build-env
-    "Build environment vector. Replace extracted values with ?."
-    [[f l r & more :as form] env]
-    (when f
+(defn build-env
+  "Build environment vector. Replace extracted values with ?."
+  [[function col value & more :as form] env]
+  (let [and-or?    '#{or and}
+        predicate? '#{= <= >= < > <> like}]
+    (when function
       (cond
-        (and-or? f)    (let [[rst env] (reduce
-                                         (fn [[rst env] more]
-                                           (let [[more env] (build-env more env)]
-                                             [(conj rst more) env]))
-                                         [[] env]
-                                         (rest form))]
-                         [(vec (cons f rst)) env])
-        (predicate? f) (if (self-eval? r)
-                         [[f l "?"] (conj env r)]
-                         [[f l r] env])
-        :else          (throw (Exception.
-                                (str "Unsupported predicate form: " f)))))))
+        (and-or? function)    (let [[rst env]
+                                    (reduce
+                                      (fn [[rst env] more]
+                                        (let [[more env] (build-env more env)]
+                                          [(conj rst more) env]))
+                                      [[] env]
+                                      (rest form))]
+                                [(vec (cons function rst)) env])
+        (predicate? function) (if (self-eval? value)
+                                [[function col "?"] (conj env value)]
+                                [[function col value] env])
+        :else (throw (Exception.
+                       (str "Unsupported predicate form: " function)))))))
 
 (defn compile-alias
   "Checks whether the given column has an alias in the aliases map. If so
   it is converted to a SQL alias of the form „column AS alias“."
-  [x aliases]
-  (if-let [a (aliases x)]
-    (str "(" (->string x) " AS " (->string a) ")")
-    x))
+  [col-or-table aliases]
+  (if-let [aka (aliases col-or-table)]
+    (str "(" (->string col-or-table) " AS " (->string aka) ")")
+    col-or-table))
 
 (defn- sql-function-type
   "Returns the type of the given SQL function. This is basically only
@@ -183,14 +191,14 @@
     :funcall))
 
 (defn compile-function
-  [x]
+  [col]
   "Compile a function specification into a string."
-  (if (list? x)
-    (let [[f c & args] x]
-      (if (= (sql-function-type f) :infix)
-        (str-cat " " (interpose f (cons (->string c) args)))
-        (str f "(" (->string c) (str-cat "," args) ")")))
-    x))
+  (if (list? col)
+    (let [[function col & args] col]
+      (if (= (sql-function-type function) :infix)
+        (str-cat " " (interpose function (cons (->string col) args)))
+        (str function "(" (->string col) (str-cat "," args) ")")))
+    col))
 
 ;; AST-BUILDING ============================================
 (defn query*
