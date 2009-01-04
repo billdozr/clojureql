@@ -24,26 +24,25 @@
 
 ;; MACROS ==================================================
 
-(defn batch-add
+(defn set-env
   [stmt env]
   (when (pos? (count env))
     (loop [env env
-           x   1]
+           cnt 1]
       (when env
         (let [value (first env)]
           (condp instance? value
-            String             (.setString    stmt x value)
-            Float              (.setFloat     stmt x value)
-            Double             (.setDouble    stmt x value)
-            Long               (.setLong      stmt x value)
-            Short              (.setShort     stmt x value)
-            Integer            (.setInt       stmt x value)
-            java.net.URL       (.setUrl       stmt x value)
-            java.util.Date     (.setDate      stmt x value)
-            java.sql.Time      (.setTime      stmt x value)
-            java.sql.Timestamp (.setTimestamp stmt x value))
-          (recur (rest env) (inc x)))))
-    (. stmt addBatch)))
+            String             (.setString    stmt cnt value)
+            Float              (.setFloat     stmt cnt value)
+            Double             (.setDouble    stmt cnt value)
+            Long               (.setLong      stmt cnt value)
+            Short              (.setShort     stmt cnt value)
+            Integer            (.setInt       stmt cnt value)
+            java.net.URL       (.setUrl       stmt cnt value)
+            java.util.Date     (.setDate      stmt cnt value)
+            java.sql.Time      (.setTime      stmt cnt value)
+            java.sql.Timestamp (.setTimestamp stmt cnt value))
+          (recur (rest env) (inc cnt)))))))
 
 (defn load-driver
   "Load the named JDBC driver. Has to be called once before accessing
@@ -59,7 +58,7 @@
                             (:username ~connection-info)
                             (:password ~connection-info))]
      ~@body))
-   
+
 (defmacro run
   " Takes 3 arguments: A vector whos first element is connection-info and the second
                        is a placeholder for the results returned by the query
@@ -79,18 +78,12 @@
            results         (second vec)]        
        `(with-connection ~connection-info open-connection#
           (let [prepStmt# (.prepareStatement open-connection# (:sql ~ast))]
-            (batch-add prepStmt# (:env ~ast))
+            (set-env prepStmt# (:env ~ast))
             (with-open [feed# (.executeQuery prepStmt#)]
               (let [~results (resultset-seq feed#)]
                 ~@body))))))
   ([connection-info ast]
      `(with-connection ~connection-info open-connection#
         (let [prepStmt# (.prepareStatement open-connection# (:sql ~ast))]
-          (batch-add prepStmt# (:env ~ast))
+          (set-env prepStmt# (:env ~ast))
             (.executeUpdate prepStmt#)))))
-
-
-
-                
-
-
