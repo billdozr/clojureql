@@ -87,3 +87,12 @@
         (let [prepStmt# (.prepareStatement open-connection# (:sql ~ast))]
           (set-env prepStmt# (:env ~ast))
             (.executeUpdate prepStmt#)))))
+
+;; UTILITIES ===============================================
+
+(defmacro print-rows
+  [con query]
+  `(run [~con results#]
+        ~query
+        (doseq [row# results#]
+          (println row#))))
