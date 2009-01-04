@@ -55,8 +55,7 @@
     (string? thing)  thing
     (symbol? thing)  (name thing)
     (keyword? thing) (name thing)
-    :else            (throw (Exception.
-                              "only Symbols, Keywords and Strings are allowed"))))
+    :else            (str thing)))
 
 (defn- check-alias
   [[specs aliases] [orig as aka]]
@@ -149,7 +148,7 @@
   (let [f (fn f [form]
             (if (vector? form)
               (str "(" (str-cat " " (interpose (first form) (map f (rest form)))) ")")
-              (str form)))]
+              (->string form)))]
     (f form)))
 
 (defn build-env
@@ -191,14 +190,14 @@
     :funcall))
 
 (defn compile-function
-  [col]
+  [col-spec]
   "Compile a function specification into a string."
-  (if (list? col)
-    (let [[function col & args] col]
+  (if (list? col-spec)
+    (let [[function col & args] col-spec]
       (if (= (sql-function-type function) :infix)
-        (str-cat " " (interpose function (cons (->string col) args)))
+        (infixed (vec col-spec))
         (str function "(" (->string col) (str-cat "," args) ")")))
-    col))
+    col-spec))
 
 ;; AST-BUILDING ============================================
 (defn query*
