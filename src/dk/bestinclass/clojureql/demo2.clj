@@ -1,35 +1,32 @@
 ;; TEST ====================================================
 
 
-(ns dk.bestinclass.clojureql.demo
+(ns dk.bestinclass.clojureql.demo2
   (:gen-class)
   (:require
      [dk.bestinclass.clojureql :as sql]))
 
 ; First define in your database the following table.
 ;
-; MySQL:
+; SQLite:
 ;
-; CREATE TABLE `employees` (
-;  `id` int(11) NOT NULL auto_increment,
-;  `name` varchar(100) NOT NULL,
-;  `language` varchar(100) NOT NULL,
-;  `efficiency` double NOT NULL,
-;  `iq` int(11) NOT NULL,
-;  PRIMARY KEY  (`id`)
-;  ) ENGINE=MyISAM AUTO_INCREMENT=27 DEFAULT CHARSET=latin1
+; CREATE TABLE employees (
+;   id INTEGER PRIMARY KEY,
+;   name TEXT,
+;   language TEXT,
+;   efficiency NUMERIC,
+;   iq NUMERIC
+; );
 ;
 ; Sorry. create-table is not finished, yet.
 
 ; Adapt the following connection-info to your local database.
-(def *conn-info* (sql/connect-info "mysql"
-                                   "localhost/mysql"
-                                   "mysqluser"
-                                   "mysqlpsw"))
-
+(def *conn-info* {:jdbc-url "jdbc:sqlite:ClojureQL_Demo.db"
+                  :username ""
+                  :password ""})
 
 ; Set the correct driver here.
-(def *driver* "com.mysql.jdbc.Driver")
+(def *driver* "org.sqlite.JDBC")
 
 ; Then simply run this namespace to execute some example queries.
 
@@ -47,7 +44,7 @@
                  [   "Arnold"  "Cobol"     0.24           24 ]
                  [   "Chouser" "Clojure"   1             192]]
         make-stmt (fn [nom language efficiency iq]
-                    (sql/insert-into roster.employees
+                    (sql/insert-into employees
                                      name       ~nom
                                      language   ~language
                                      efficiency ~efficiency
@@ -62,7 +59,7 @@
   ; Query (and other statements) are first class objects. They can
   ; be stored in locals or passed to functions...
   (let [q (sql/query [id name language efficiency]  ; Columns to fetch
-                     roster.employees               ; Schema/Db
+                     employees                      ; Table
                      (> efficiency 0.5))]           ; Taking only efficient developers
     (sql/run [*conn-info* results]       ; Then execute some SQL and work with the results
              (sql/order-by q             ; Order our query ...
