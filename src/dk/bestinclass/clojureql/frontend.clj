@@ -43,6 +43,29 @@
 (defstruct sql-difference
   :type :queries :env :sql)
 
+;; HIERARCHY ===============================================
+
+(def
+  #^{:private true
+     :doc
+  "Hierarchy for the SELECT statements."}
+  select-hierarchy
+  (-> (make-hierarchy)
+    (derive ::OrderedSelect  ::Select)
+    (derive ::GroupedSelect  ::Select)
+    (derive ::DistinctSelect ::Select)))
+
+(defn- is-and-not?
+  "Checks whether the given query is of the type isa (or any derivee).
+  If so, checks also any subquery. Returns nil or the offending query
+  type."
+  [kwery isa is-not-a]
+  (if (and      (isa? select-hierarchy (kwery :type) isa)
+           (not (isa? select-hierarchy (kwery :type) is-not-a)))
+    (when-let [sub-query (kwery :query)]
+      (is-and-not? sub-query isa is-not-a))
+    (kwery :type)))
+
 ;; HELPERS =================================================
 
 (defn- ->vector
@@ -327,6 +350,8 @@
 (defn order-by*
   "Driver for the order-by macro. Don't call directly."
   [kwery & columns]
+  (when-let [offender (is-and-not? kwery ::Select ::OrderedSelect)]
+    (throw (Exception. (str "Unexpected query type: " offender))))
   (let [order   (first columns)
         columns (vec (if (keyword? order) (drop 1 columns) columns))
         order   (if (keyword? order) order :ascending)]
@@ -352,6 +377,8 @@
 
 (defn group-by*
   [kwery & columns]
+  (when-let [offender (is-and-not? kwery ::Select ::GroupedSelect)]
+    (throw (Exception. (str "Unexpected query type: " offender))))
   (let [columns (vec columns)]
     (struct-map sql-grouped-query
                 :type    ::GroupedSelect
@@ -370,8 +397,10 @@
 (defn distinct!
   "Modify the given query to return only distinct results."
   [kwery]
+  (when-let [offender (is-and-not? kwery ::Select ::DistinctSelect)]
+    (throw (Exception. (str "Unexpected query type: " offender))))
   (struct-map sql-distinct-query
-              :type  ::DistinctQuery
+              :type  ::DistinctSelect
               :query kwery
               :env   (kwery :env)
               :sql   (apply str "SELECT DISTINCT" (drop 6 (kwery :sql)))))
