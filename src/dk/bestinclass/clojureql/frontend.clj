@@ -355,7 +355,9 @@
   :all in order to include all results in the union. Without :all only distinct
   results are included."
   [& kweries]
-  (when kweries
+  (condp = (count kweries)
+    0 nil
+    1 (first kweries)
     (let [all     (= (first kweries) :all)
           kweries (vec (if all (drop 1 kweries) kweries))]
       (struct-map sql-union
