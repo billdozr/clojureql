@@ -37,6 +37,9 @@
 (defstruct sql-intersect
   :type :queries :env :sql)
 
+(defstruct sql-difference
+  :type :queries :env :sql)
+
 ;; HELPERS =================================================
 
 (defn- ->vector
@@ -387,5 +390,20 @@
                 :env     (vec (mapcat :env kweries))
                 :sql     (str "("
                               (str-cat " " (interpose ") INTERSECT ("
+                                                      (map :sql kweries)))
+                              ")"))))
+
+(defn difference
+  "Build the difference of the given queries."
+  [& kweries]
+  (condp = (count kweries)
+    0 nil
+    1 (first kweries)
+    (struct-map sql-difference
+                :type    ::Difference
+                :queries kweries
+                :env     (vec (mapcat :env kweries))
+                :sql     (str "("
+                              (str-cat " " (interpose ") MINUS ("
                                                       (map :sql kweries)))
                               ")"))))
