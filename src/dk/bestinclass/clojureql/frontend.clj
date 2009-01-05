@@ -34,6 +34,9 @@
 (defstruct sql-union
   :type :all :queries :env :sql)
 
+(defstruct sql-intersect
+  :type :queries :env :sql)
+
 ;; HELPERS =================================================
 
 (defn- ->vector
@@ -365,5 +368,24 @@
                   :all     all
                   :queries kweries
                   :env     (vec (mapcat :env kweries))
-                  :sql     (str-cat " " (interpose (if all "UNION ALL" "UNION")
-                                                   (map :sql kweries)))))))
+                  :sql     (str "("
+                                (str-cat " " (interpose (if all
+                                                          ") UNION ALL ("
+                                                          ") UNION (")
+                                                        (map :sql kweries)))
+                                ")")))))
+
+(defn intersect
+  "Build the intersection of the given queries."
+  [& kweries]
+  (condp = (count kweries)
+    0 nil
+    1 (first kweries)
+    (struct-map sql-intersect
+                :type    ::Intersect
+                :queries kweries
+                :env     (vec (mapcat :env kweries))
+                :sql     (str "("
+                              (str-cat " " (interpose ") INTERSECT ("
+                                                      (map :sql kweries)))
+                              ")"))))
