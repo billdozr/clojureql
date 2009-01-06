@@ -60,6 +60,27 @@
   (doto (.prepareStatement conn (sql-stmt :sql))
     (set-env (sql-stmt :env))))
 
+(defn result-seq
+  "This is basically a rip-off of Clojure's resultset-seq, which also
+  closes the result set, when the last row was realized in the seq."
+  [#^java.sql.ResultSet result-set]
+    (let [meta-info  (.getMetaData result-set)
+          idxs       (range 1 (inc (.getColumnCount meta-info)))
+          keys       (map (comp keyword
+                                #(.toLowerCase %)
+                                #(.getColumnName meta-info %))
+                          idxs)
+          row-struct (apply create-struct keys)
+          row-values (fn [] (map (fn [#^Integer i] (.getObject result-set i)) idxs))
+          rows       (fn thisfn []
+                       (if (.next result-set)
+                         (lazy-cons (apply struct row-struct (row-values))
+                                    (thisfn))
+                         (do
+                           (.close result-set)
+                           nil)))]
+      (rows)))
+
 ; Unfortunately, multifns don't support custom hierarchies.
 (derive ::Select         ::ExecuteQuery)
 (derive ::OrderedSelect  ::Select)
@@ -85,7 +106,8 @@
   [sql-stmt conn]
   (-> sql-stmt
     (prepare-statement conn)
-    .executeQuery))
+    .executeQuery
+    result-seq))
 
 (defmethod execute-sql ::ExecuteUpdate
   [sql-stmt conn]
@@ -121,15 +143,14 @@
            (query [col1 col2] database.table1 (> col1 col2))
            (doseq [result myresults]
              (do x y z to 'result')))
-        - or -  
+        - or -
         (run db1 (insert-into table1 name 'Frank' age 22)) "
   ([vec ast & body]
      (let [connection-info (first vec)
-           results         (second vec)]        
+           results         (second vec)]
        `(with-connection ~connection-info open-connection#
-          (with-open [feed# (execute-sql ~ast open-connection#)]
-            (let [~results (resultset-seq feed#)]
-              ~@body)))))
+          (let [~results (execute-sql ~ast open-connection#)]
+            ~@body))))
   ([connection-info ast]
      `(with-connection ~connection-info open-connection#
         (execute-sql ~ast open-connection#))))
