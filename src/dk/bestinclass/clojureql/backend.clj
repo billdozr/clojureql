@@ -51,6 +51,56 @@
   (Class/forName driver)
   nil)
 
+;; SQL EXECUTION ============================================
+
+(defn prepare-statement
+  "Return a prepared statement for the given SQL statement in the
+  context of the given connection."
+  [sql-stmt conn]
+  (doto (.prepareStatement conn (sql-stmt :sql))
+    (set-env (sql-stmt :env))))
+
+; Unfortunately, multifns don't support custom hierarchies.
+(derive ::Select         ::ExecuteQuery)
+(derive ::OrderedSelect  ::Select)
+(derive ::GroupedSelect  ::Select)
+(derive ::DistinctSelect ::Select)
+(derive ::Union          ::ExecuteQuery)
+(derive ::Intersect      ::ExecuteQuery)
+(derive ::Difference     ::ExecuteQuery)
+(derive ::Update         ::ExecuteUpdate)
+(derive ::Insert         ::ExecuteUpdate)
+(derive ::Delete         ::ExecuteUpdate)
+
+(defmulti
+  #^{:arglists '([sql-stmt conn])
+     :doc
+  "Execute the given SQL statement in the context of the given connection
+  as obtained by with-connection."}
+  execute-sql
+  (fn [sql-stmt conn] (sql-stmt :type))
+  ::Execute)
+
+(defmethod execute-sql ::ExecuteQuery
+  [sql-stmt conn]
+  (-> sql-stmt
+    (prepare-statement conn)
+    .executeQuery))
+
+(defmethod execute-sql ::ExecuteUpdate
+  [sql-stmt conn]
+  (-> sql-stmt
+    (prepare-statement conn)
+    .executeUpdate))
+
+(defmethod execute-sql ::Execute
+  [sql-stmt conn]
+  (-> sql-stmt
+    (prepare-statement conn)
+    .execute))
+
+;; INTERFACE ================================================
+
 (defmacro with-connection
   [connection-info connection & body]
   `(with-open [~connection (java.sql.DriverManager/getConnection
@@ -77,16 +127,12 @@
      (let [connection-info (first vec)
            results         (second vec)]        
        `(with-connection ~connection-info open-connection#
-          (let [prepStmt# (.prepareStatement open-connection# (:sql ~ast))]
-            (set-env prepStmt# (:env ~ast))
-            (with-open [feed# (.executeQuery prepStmt#)]
-              (let [~results (resultset-seq feed#)]
-                ~@body))))))
+          (with-open [feed# (execute-sql ~ast open-connection#)]
+            (let [~results (resultset-seq feed#)]
+              ~@body)))))
   ([connection-info ast]
      `(with-connection ~connection-info open-connection#
-        (let [prepStmt# (.prepareStatement open-connection# (:sql ~ast))]
-          (set-env prepStmt# (:env ~ast))
-            (.executeUpdate prepStmt#)))))
+        (execute-sql ~ast open-connection#))))
 
 ;; UTILITIES ===============================================
 
