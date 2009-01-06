@@ -43,6 +43,9 @@
 (defstruct sql-difference
   :type :queries :env :sql)
 
+(defstruct sql-let-query
+  :type :fn)
+
 ;; HIERARCHY ===============================================
 
 (def
@@ -456,3 +459,24 @@
                               (str-cat " " (interpose ") MINUS ("
                                                       (map :sql kweries)))
                               ")"))))
+
+(declare execute-sql)
+
+(defmacro let-query
+  "Takes a let-style binding vector and returns a new query, which,
+  when executed, assigns the queries results to the named locals and
+  executes the body. The result of the body is returned as the query's
+  result."
+  [bindings & body]
+  (let [conn    (gensym "let_query_conn__")
+        locals  (take-nth 2 bindings)
+        kweries (take-nth 2 (rest bindings))]
+    `(struct-map sql-let-query
+                 :type ::LetQuery
+                 :fn   (fn [~conn]
+                         (let ~(vec (interleave
+                                      locals
+                                      (map (fn [kwery]
+                                             `(execute-sql ~kwery ~conn))
+                                           kweries)))
+                           ~@body)))))

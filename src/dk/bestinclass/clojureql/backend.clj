@@ -121,6 +121,10 @@
     (prepare-statement conn)
     .execute))
 
+(defmethod execute-sql ::LetQuery
+  [sql-stmt conn]
+  ((sql-stmt :fn) conn))
+
 ;; INTERFACE ================================================
 
 (defmacro with-connection

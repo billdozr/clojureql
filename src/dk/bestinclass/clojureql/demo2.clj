@@ -66,4 +66,21 @@
                            :descending   ; ... descending by ...
                            efficiency)   ; ... the columns 'efficiency'.
       (doseq [row results]               ; The rest is up to you
-        (println row)))))
+        (println row))))
+  ; Another example of a high-level query:
+  ; Dynamically create a new query, which transparently
+  ; combines two subquery.
+  (let [union-query (sql/let-query [q1 (sql/order-by
+                                         (sql/query [id name language efficiency]
+                                                    employees
+                                                    (> efficiency 0.9))
+                                         :descending
+                                         efficiency)
+                                    q2 (sql/order-by
+                                         (sql/query [id name language efficiency]
+                                                    employees
+                                                    (< efficiency 0.5))
+                                         :descending
+                                         efficiency)]
+                      (concat q1 q2))]
+    (sql/print-rows *conn-info* union-query)))
