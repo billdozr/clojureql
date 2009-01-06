@@ -69,6 +69,7 @@
                            :descending   ; ... descending by ...
                            efficiency)   ; ... the columns 'efficiency'.
       (doseq [row results]               ; The rest is up to you
+        (println row))))
   ; Another example of a high-level query:
   ; Dynamically create a new query, which transparently
   ; combines two subquery.
@@ -86,4 +87,3 @@
                                          efficiency)]
                       (concat q1 q2))]
     (sql/print-rows *conn-info* union-query)))
-        (println row))))
