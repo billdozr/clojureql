@@ -39,7 +39,9 @@
             Short              (.setShort     stmt cnt value)
             Integer            (.setInt       stmt cnt value)
             java.net.URL       (.setUrl       stmt cnt value)
-            java.util.Date     (.setDate      stmt cnt value)
+            java.sql.Date      (.setDate      stmt cnt value)
+            java.util.Date     (let [value (java.sql.Date. (.getTime value))]
+                                 (.setDate    stmt cnt value))
             java.sql.Time      (.setTime      stmt cnt value)
             java.sql.Timestamp (.setTimestamp stmt cnt value))
           (recur (rest env) (inc cnt)))))))
