@@ -95,10 +95,31 @@
     (keyword? thing) (name thing)
     :else            (str thing)))
 
+(defn- column-from-spec
+  "Try to get the column from a specificaton. Examples:
+     (column-from-spec col) => col
+     (column-from-spec (??? col ...) => col
+     (column-from-spec [col :as ...]) => col
+     (column-from-spec [(??? col ...) :as ...]) => col"
+  [col-spec]
+  (cond
+    (vector? col-spec) (column-from-spec (first col-spec))
+    (list? col-spec)   (second col-spec)
+    :else              col-spec))
+
+(defn- table-from-spec
+  "Try to get the table from a specificaton. Examples:
+     (table-from-spec table) => table
+     (table-from-spec [table :as ???]) => table"
+  [table-spec]
+  (cond
+    (vector? table-spec) (first table-spec)
+    :else                table-spec))
+
 (defn- check-alias
   [[specs aliases] [orig as aka]]
   (if (= as :as)
-    (vector (conj specs orig) (conj aliases [orig aka]))
+    (vector (conj specs orig) (conj aliases [(column-from-spec orig) aka]))
     (vector (conj specs orig) aliases)))
 
 (defn- fix-prefix
@@ -203,10 +224,10 @@
 (defn compile-alias
   "Checks whether the given column has an alias in the aliases map. If so
   it is converted to a SQL alias of the form „column AS alias“."
-  [col-or-table aliases]
+  [col-or-table-spec col-or-table aliases]
   (if-let [aka (aliases col-or-table)]
-    (str "(" (->string col-or-table) " AS " (->string aka) ")")
-    col-or-table))
+    (str "(" (->string col-or-table-spec) " AS " (->string aka) ")")
+    col-or-table-spec))
 
 (defn- sql-function-type
   "Returns the type of the given SQL function. This is basically only
@@ -234,7 +255,7 @@
   (if (or (list? col-spec) (vector? col-spec))
     (let [[function col & args] col-spec]
       (if (= (sql-function-type function) :infix)
-        (infixed (vec col-spec))
+        (infixed col-spec)
         (str function "(" (->string col) (str-cat "," args) ")")))
     col-spec))
 
@@ -262,13 +283,19 @@
                 :env            env
                 :sql
                 (let [cols   (str-cat ","
-                               (map (comp ->string
+                               (map (fn [spec]
+                                      (let [col (column-from-spec spec)]
+                                        (-> spec
                                           compile-function
-                                          #(compile-alias % col-aliases))
+                                          (compile-alias col col-aliases)
+                                          ->string)))
                                     col-spec))
                       tables (str-cat ","
-                               (map (comp ->string
-                                          #(compile-alias % table-aliases))
+                               (map (fn [spec]
+                                      (let [table (table-from-spec spec)]
+                                        (-> spec
+                                          (compile-alias table table-aliases)
+                                          ->string)))
                                     table-spec))
                       stmnt  (list* "SELECT" cols
                                     "FROM"   tables
