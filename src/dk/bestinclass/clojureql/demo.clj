@@ -10,80 +10,140 @@
 ;
 ; MySQL:
 ;
-; CREATE TABLE `employees` (
-;  `id` int(11) NOT NULL auto_increment,
-;  `name` varchar(100) NOT NULL,
-;  `language` varchar(100) NOT NULL,
-;  `efficiency` double NOT NULL,
-;  `iq` int(11) NOT NULL,
-;  PRIMARY KEY  (`id`)
-;  ) ENGINE=MyISAM AUTO_INCREMENT=27 DEFAULT CHARSET=latin1
+; CREATE TABLE StoreInformation (
+;   StoreName varchar(100),
+;   Sales int(11),
+;   Date date
+; )
+;
+; SQLite:
+;
+; CREATE TABLE StoreInformation (
+;   StoreName,
+;   Sales,
+;   Date
+; )
 ;
 ; Sorry. create-table is not finished, yet.
 
+; Choose your database. Currently MySQL and SQLite are supported
+; in the examples.
+(def *database-system* :SQLite)
+
 ; Adapt the following connection-info to your local database.
-(def *conn-info* (sql/connect-info "mysql"
-                                   "localhost/mysql"
-                                   "mysqluser"
-                                   "mysqlpsw"))
+(def *conn-info*
+  (condp = *database-system*
+    :MySQL  (sql/connect-info "mysql"
+                              "localhost/mysql"
+                              "mysqluser"
+                              "mysqlpsw")
+    :SQLite {:jdbc-url "jdbc:sqlite:demo.db"
+             :username ""
+             :password ""}))
 
+(def *driver*
+  (condp = *database-system*
+    :MySQL  "com.mysql.jdbc.Driver"
+    :SQLite "org.sqlite.JDBC"))
 
-; Set the correct driver here.
-(def *driver* "com.mysql.jdbc.Driver")
-
-; Then simply run this namespace to execute some example queries.
-
-(defn insert-data
-  []
-  (let [columns [    :name     :language   :efficiency   :iq ]
-        data    [[   "Frank"   "Python"    0.75           82 ]
-                 [   "Brian"   "OCaml"     0.9           119 ]
-                 [   "John"    "Fortran"   0.1           122 ]
-                 [   "Mark"    "PHP"       0.71          104 ]
-                 [   "Peter"   "SBCL"      0.9           123 ]
-                 [   "Jack D." "Haskell"   0.9           118 ]
-                 [   "Mike"    "C++"       0.002         107 ]
-                 [   "Vader"   "Pure Evil" 0.99          158 ]
-                 [   "Arnold"  "Cobol"     0.24           24 ]
-                 [   "Chouser" "Clojure"   1             192]]
-        make-stmt (fn [nom language efficiency iq]
-                    (sql/insert-into roster.employees
-                                     name       ~nom
-                                     language   ~language
-                                     efficiency ~efficiency
-                                     iq          ~iq))]
-    (doseq [stmt (map #(apply make-stmt %) data)]
-      (sql/run *conn-info* stmt))))
+(defn run-and-show
+  [query]
+  (sql/run [*conn-info* rows] query
+    (doseq [row rows]
+      (prn row))))
 
 (defn -main
   [& args]
+  ; First load the driver. This is has to be done once
+  ; on application startup.
   (sql/load-driver *driver*)
-  (insert-data)                          ; First populate the DB
-  ; Query (and other statements) are first class objects. They can
-  ; be stored in locals or passed to functions...
-  (let [q (sql/query [id name language efficiency]  ; Columns to fetch
-                     roster.employees               ; Schema/Db
-                     (> efficiency 0.5))]           ; Taking only efficient developers
-    (sql/run [*conn-info* results]       ; Then execute some SQL and work with the results
-             (sql/order-by q             ; Order our query ...
-                           :descending   ; ... descending by ...
-                           efficiency)   ; ... the columns 'efficiency'.
-      (doseq [row results]               ; The rest is up to you
-        (println row))))
-  ; Another example of a high-level query:
-  ; Dynamically create a new query, which transparently
-  ; combines two subquery.
-  (let [union-query (sql/let-query [q1 (sql/order-by
-                                         (sql/query [id name language efficiency]
-                                                    employees
-                                                    (> efficiency 0.9))
-                                         :descending
-                                         efficiency)
-                                    q2 (sql/order-by
-                                         (sql/query [id name language efficiency]
-                                                    employees
-                                                    (< efficiency 0.5))
-                                         :descending
-                                         efficiency)]
-                      (concat q1 q2))]
-    (sql/print-rows *conn-info* union-query)))
+
+  ; Populate the table with data.
+  (let [make-stmt (fn [[store sale date]]
+                    (sql/insert-into StoreInformation
+                                     StoreName ~store
+                                     Sales     ~sale
+                                     Date      ~date))
+        data      [["Los Angeles"   1500 (java.util.Date. 1999 1 5)]
+                   ["San Diego"      250 (java.util.Date. 1999 1 7)]
+                   ["San Francisco"  300 (java.util.Date. 1999 1 8)]
+                   ["Los Angeles"    100 (java.util.Date. 1999 1 8)]
+                   ["Boston"         700 (java.util.Date. 1999 1 9)]]]
+    (doseq [record data]
+      (sql/run *conn-info* (make-stmt record))))
+
+  ; Let's do a sample query.
+  (println "SELECT StoreName FROM StoreInformation")
+  (run-and-show (sql/query StoreName StoreInformation))
+
+  ; Now let's modify the previous query to only return distinct
+  ; results.
+  (println "SELECT DISTINCT StoreName FROM StoreInformation")
+  (run-and-show (sql/distinct!
+                  (sql/query StoreName StoreInformation)))
+
+  ; Where are the biggest sales?
+  (println "SELECT StoreName FROM StoreInformation WHERE Sales > 1000")
+  (run-and-show (sql/query StoreName
+                           StoreInformation
+                           (> Sales 1000)))
+
+  ; Biggest sales and middlefield?
+  (println "SELECT StoreName FROM StoreInformation WHERE Sales > 1000 OR (Sales < 500 AND Sales > 275)")
+  (run-and-show (sql/query StoreName
+                           StoreInformation
+                           (or (> Sales 1000)
+                               (and (< Sales 500)
+                                    (> Sales 275)))))
+
+  ; Let's check all stores containing an 'an'.
+  (println "SELECT * FROM StoreInformation WHERE StoreName LIKE '%an%'")
+  (run-and-show (sql/query *
+                           StoreInformation
+                           (like StoreName "%an%")))
+
+  ; Now we check the hit parade of our stores.
+  (println "SELECT * FROM StoreInformation ORDER BY Sales DESC")
+  (run-and-show (sql/order-by (sql/query * StoreInformation)
+                              :descending
+                              Sales))
+
+  ; What is the average of our sales?
+  (println "SELECT avg(Sales) FROM StoreInformation")
+  (run-and-show (sql/query (avg Sales) StoreInformation))
+
+  ; What are the Sales for the different stores?
+  (println "SELECT StoreName,sum(Sales) FROM StoreInformation GROUP BY StoreName")
+  (run-and-show (sql/group-by (sql/query [StoreName (sum Sales)]
+                                         StoreInformation)
+                              StoreName))
+
+  ; What are the top stores?
+  (println "SELECT StoreName,sum(Sales) FROM StoreInformation GROUP BY StoreName HAVING sum(Sales) > 1200")
+  (run-and-show (sql/having (sql/group-by (sql/query [StoreName (sum Sales)]
+                                                     StoreInformation)
+                                          StoreName)
+                            (> (sum Sales) 1200)))
+
+  ; Using aliases.
+  (println "SELECT si.StoreName AS Store, sum(si.Sales) AS TotalSales FROM StoreInformation AS si GROUP BY si.StoreName")
+  (run-and-show (sql/group-by (sql/query [[si :cols
+                                           [StoreName :as Store]
+                                           [(sum Sales) :as TotalSales]]]
+                                         [[StoreInformation :as si]])
+                              si.StoreName))
+
+  ; Be truly DB agnostic...
+  (println "On MySQL:      SELECT CONCAT(ColA, ColB) FROM table")
+  (println "On Oracle:     SELECT ColA || ColB FROM table")
+  (println "On SQL Server: SELECT ColA + ColB FROM table")
+  (println "In ClojureQL:  One syntax to rule them all!")
+  (run-and-show (sql/let-query [result (sql/group-by
+                                         (sql/query [StoreName
+                                                     [(sum Sales) :as TotalSales]]
+                                                    StoreInformation)
+                                         StoreName)]
+                  (map #(hash-map :our-result (str (:storename %)
+                                                   " sold $"
+                                                   (:totalsales %) "!"))
+                       result))))
