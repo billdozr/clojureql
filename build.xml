@@ -26,7 +26,6 @@
 			<sysproperty key="clojure.compile.path" value="${build}"/>
 			<arg value="dk.bestinclass.clojureql"/>
 			<arg value="dk.bestinclass.clojureql.demo"/>
-			<arg value="dk.bestinclass.clojureql.demo2"/>
 		</java>
 	</target>
 
