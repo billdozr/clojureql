@@ -31,6 +31,9 @@
 (defstruct sql-grouped-query
   :type :query :columns :env :sql)
 
+(defstruct sql-having-query
+  :type :query :env :sql)
+
 (defstruct sql-distinct-query
   :type :query :env :sql)
 
@@ -176,21 +179,11 @@
   (doseq [entry ast]
     (prn entry)))
 
-(defn infixed
-  " Ex: (infixed (and (> x 5) (< x 10))) =>
-                  ((X > 5) AND (X < 10)) "
-  [form]
-  (let [f (fn f [form]
-            (if (vector? form)
-              (str "(" (str-cat " " (interpose (first form) (map f (rest form)))) ")")
-              (->string form)))]
-    (f form)))
-
 (defn build-env
   "Build environment vector. Replace extracted values with ?."
   [[function col value & more :as form] env]
-  (let [and-or?    '#{or and}
-        predicate? '#{= <= >= < > <> like}]
+  (let [and-or?    (comp #{"or" "and"} ->string)
+        predicate? (comp #{"=" "<=" ">=" "<" ">" "<>" "like"} ->string)]
     (when function
       (cond
         (and-or? function)    (let [[rst env]
@@ -220,14 +213,25 @@
   interesting to catch the mathematical operators, which are infixed.
   Other function calls are handled normally."
   [sql-fun]
-  (if (#{"+" "-" "*" "/"} (->string sql-fun))
-    :infix
-    :funcall))
+  (let [infix? (comp #{"+" "-" "*" "/" "and" "or" "="
+                       "<=" ">=" "<" ">" "<>" "like"}
+                     ->string)]
+    (if (infix? sql-fun)
+      :infix
+      :funcall)))
+
+(declare compile-function)
+
+(defn infixed
+  [form]
+  (str "(" (str-cat " " (interpose (->string (first form))
+                                   (map compile-function (rest form))))
+       ")"))
 
 (defn compile-function
   [col-spec]
   "Compile a function specification into a string."
-  (if (list? col-spec)
+  (if (or (list? col-spec) (vector? col-spec))
     (let [[function col & args] col-spec]
       (if (= (sql-function-type function) :infix)
         (infixed (vec col-spec))
@@ -396,6 +400,25 @@
   "Modify the given query to be group by the given columns."
   [kwery & columns]
   `(group-by* ~kwery ~@(map quasiquote* columns)))
+
+(defn having*
+  "Driver for the having macro. Should not be called directly."
+  [kwery pred-spec]
+  (when-let [offender (is-and-not? kwery ::Select ::HavingSelect)]
+    (throw (Exception. (str "Unexpected query type: " offender))))
+  (let [[pred-spec env] (build-env pred-spec (kwery :env))]
+    (struct-map sql-having-query
+                :type     ::HavingSelect
+                :query    kwery
+                :env      env
+                :sql      (str-cat " " [(kwery :sql)
+                                        "HAVING"
+                                        (compile-function pred-spec)]))))
+
+(defmacro having
+  "Add a HAVING clause to the given query."
+  [kwery pred-spec]
+  `(having* ~kwery ~(quasiquote* pred-spec)))
 
 (defn distinct!
   "Modify the given query to return only distinct results."

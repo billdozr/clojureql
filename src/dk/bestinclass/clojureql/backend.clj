@@ -86,6 +86,7 @@
 (derive ::OrderedSelect  ::Select)
 (derive ::GroupedSelect  ::Select)
 (derive ::DistinctSelect ::Select)
+(derive ::HavingSelect   ::Select)
 (derive ::Union          ::ExecuteQuery)
 (derive ::Intersect      ::ExecuteQuery)
 (derive ::Difference     ::ExecuteQuery)
