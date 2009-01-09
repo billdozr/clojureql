@@ -226,7 +226,7 @@
   it is converted to a SQL alias of the form „column AS alias“."
   [col-or-table-spec col-or-table aliases]
   (if-let [aka (aliases col-or-table)]
-    (str "(" (->string col-or-table-spec) " AS " (->string aka) ")")
+    (str (->string col-or-table-spec) " AS " (->string aka))
     col-or-table-spec))
 
 (defn- sql-function-type
