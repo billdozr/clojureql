@@ -58,6 +58,9 @@
 (defstruct sql-create-table
   :type :table :columns :sql)
 
+(defstruct sql-drop-table
+  :type :table :if-exists :sql)
+
 ;; HIERARCHY ===============================================
 
 (def
@@ -567,3 +570,22 @@
   "Create a table of the given name and the given columns."
   [table & columns]
   `(create-table* ~@(map quasiquote* (cons table columns))))
+
+(defn drop-table*
+  "Driver function for the drop-table macro. Don't use directly."
+  [table & if-exists]
+  (let [if-exists (= (first if-exists) :if-exists)]
+    (struct-map sql-drop-table
+                :type      ::DropTable
+                :tabel     table
+                :if-exists if-exists
+                :sql
+                (str-cat " " ["DROP TABLE"
+                              (when if-exists
+                                "IF EXISTS")
+                              table]))))
+
+(defmacro drop-table
+  "Drop the given table. Optionally :if-exists might be specified."
+  [table & if-exists]
+  `(drop-table* ~@(map quasiquote* (cons table if-exists))))
