@@ -131,12 +131,18 @@
 ;; INTERFACE ================================================
 
 (defmacro with-connection
-  [connection-info connection & body]
+  [[connection connection-info] & body]
   `(with-open [~connection (java.sql.DriverManager/getConnection
                             (:jdbc-url ~connection-info)
                             (:username ~connection-info)
                             (:password ~connection-info))]
      ~@body))
+
+(defn run*
+  " Driver for run - Dont call directly "
+  [conn-info ast wfunc]
+  (with-connection [open-conn conn-info]
+    (wfunc (execute-sql ast open-conn))))
 
 (defmacro run
   " Takes 3 arguments: A vector whos first element is connection-info and the second
@@ -152,14 +158,10 @@
              (do x y z to 'result')))
         - or -
         (run db1 (insert-into table1 name 'Frank' age 22)) "
-  ([vec ast & body]
-     (let [connection-info (first vec)
-           results         (second vec)]
-       `(with-connection ~connection-info open-connection#
-          (let [~results (execute-sql ~ast open-connection#)]
-            ~@body))))
+  ([[connection-info results] ast & body]
+     `(run* ~connection-info ~ast (fn [~results] ~@body)))
   ([connection-info ast]
-     `(with-connection ~connection-info open-connection#
+     `(with-connection [open-connection# ~connection-info]
         (execute-sql ~ast open-connection#))))
 
 ;; UTILITIES ===============================================
@@ -170,3 +172,8 @@
         ~query
         (doseq [row# results#]
           (println row#))))
+
+
+
+
+
