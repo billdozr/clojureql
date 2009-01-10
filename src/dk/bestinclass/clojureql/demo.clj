@@ -6,26 +6,6 @@
   (:require
      [dk.bestinclass.clojureql :as sql]))
 
-; First define in your database the following table.
-;
-; MySQL:
-;
-; CREATE TABLE StoreInformation (
-;   StoreName varchar(100),
-;   Sales int(11),
-;   Date date
-; )
-;
-; SQLite:
-;
-; CREATE TABLE StoreInformation (
-;   StoreName,
-;   Sales,
-;   Date
-; )
-;
-; Sorry. create-table is not finished, yet.
-
 ; Choose your database. Currently MySQL and SQLite are supported
 ; in the examples.
 (def *database-system* :SQLite)
@@ -57,6 +37,17 @@
   ; First load the driver. This is has to be done once
   ; on application startup.
   (sql/load-driver *driver*)
+
+  ; Create the table we will use in the demo.
+  (sql/run *conn-info* (condp = *database-system*
+                         :MySQL  (sql/create-table StoreInformation
+                                                   [StoreName "varchar(100)"]
+                                                   [Sales "int(11)"]
+                                                   [Date date])
+                         :SQLite (sql/create-table StoreInformation
+                                                   StoreName
+                                                   Sales
+                                                   Date)))
 
   ; Populate the table with data.
   (let [make-stmt (fn [[store sale date]]

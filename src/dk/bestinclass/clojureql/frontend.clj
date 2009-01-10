@@ -13,17 +13,10 @@
 
 ;; DEFINITIONS =============================================
 
+; Queries
+
 (defstruct sql-query
   :type :columns :tables :predicates :column-aliases :table-aliases :env :sql)
-
-(defstruct sql-insert
-  :type :table :columns :env :sql)
-
-(defstruct sql-update
-  :type :table :columns :predicates :env :sql)
-
-(defstruct sql-delete
-  :type :table :predicates :env :sql)
 
 (defstruct sql-ordered-query
   :type :query :order :columns :env :sql)
@@ -48,6 +41,22 @@
 
 (defstruct sql-let-query
   :type :fn)
+
+; Data Handling
+
+(defstruct sql-insert
+  :type :table :columns :env :sql)
+
+(defstruct sql-update
+  :type :table :columns :predicates :env :sql)
+
+(defstruct sql-delete
+  :type :table :predicates :env :sql)
+
+; Table Handling
+
+(defstruct sql-create-table
+  :type :table :columns :sql)
 
 ;; HIERARCHY ===============================================
 
@@ -260,6 +269,9 @@
     col-spec))
 
 ;; AST-BUILDING ============================================
+
+; Queries
+
 (defn query*
   "Driver for the query macro. Don't call directly!"
   [col-spec table-spec pred-spec]
@@ -309,77 +321,6 @@
    `(query ~col-spec ~table-spec nil))
   ([col-spec table-spec pred-spec]
    `(query* ~@(map quasiquote* [col-spec table-spec pred-spec]))))
-
-(defn insert-into*
-  "Driver for the insert-into macro. Don't use directly."
-  [table & col-val-pairs]
-  (if (even? (count col-val-pairs))
-    (let [columns (take-nth 2 col-val-pairs)
-          values  (take-nth 2 (rest col-val-pairs))]
-      (struct-map sql-insert
-                  :type    ::Insert
-                  :table   table
-                  :columns columns
-                  :env     values
-                  :sql
-                  (str-cat " " ["INSERT INTO" table "("
-                                (str-cat "," (map ->string columns))
-                                ") VALUES ("
-                                (str-cat "," (take (count columns) (repeat "?")))
-                                ")"])))
-    (throw (Exception. "column/value pairs not balanced"))))
-
-(defmacro insert-into
-  "Insert data into a table."
-  [table & col-val-pairs]
-  `(insert-into* ~@(map quasiquote* (cons table col-val-pairs))))
-
-(defn update*
-  "Driver for the update macro. Don't call directly."
-  [table col-val-pairs pred-spec]
-  (if (even? (count col-val-pairs))
-    (let [columns         (vec (take-nth 2 col-val-pairs))
-          values          (vec (take-nth 2 (rest col-val-pairs)))
-          [pred-spec env] (build-env pred-spec values)]
-      (struct-map sql-update
-                  :type       ::Update
-                  :table      table
-                  :columns    columns
-                  :predicates pred-spec
-                  :env        env
-                  :sql
-                  (str-cat " " ["UPDATE" table
-                                "SET"    (str-cat "," (map (comp
-                                                             #(str % " = ?")
-                                                             ->string)
-                                                           columns))
-                                "WHERE"  (infixed pred-spec)])))
-    (throw (Exception. "column/value pairs not balanced"))))
-
-(defmacro update
-  "Update the given columns of the given table with the associated values
-  where the predicates are satisfied. The relation between columns and
-  values is given as a let-style binding vector."
-  [table col-val-pairs pred-spec]
-  `(update* ~@(map quasiquote* [table col-val-pairs pred-spec])))
-
-(defn delete-from*
-  "Driver for the delete-from macro. Don't call directly."
-  [table pred-spec]
-  (let [[pred-spec env] (build-env pred-spec [])]
-    (struct-map sql-delete
-                :type       ::Delete
-                :table      table
-                :predicates pred-spec
-                :env        env
-                :sql
-                (str-cat " " ["DELETE FROM" table
-                              "WHERE"       (infixed pred-spec)]))))
-
-(defmacro delete-from
-  "Delete the entries matching the given predicates from the given table."
-  [table pred-spec]
-  `(delete-from* ~@(map quasiquote* [table pred-spec])))
 
 (defn order-by*
   "Driver for the order-by macro. Don't call directly."
@@ -530,3 +471,99 @@
                                              `(execute-sql ~kwery ~conn))
                                            kweries)))
                            ~@body)))))
+
+; Data Handling
+
+(defn insert-into*
+  "Driver for the insert-into macro. Don't use directly."
+  [table & col-val-pairs]
+  (if (even? (count col-val-pairs))
+    (let [columns (take-nth 2 col-val-pairs)
+          values  (take-nth 2 (rest col-val-pairs))]
+      (struct-map sql-insert
+                  :type    ::Insert
+                  :table   table
+                  :columns columns
+                  :env     values
+                  :sql
+                  (str-cat " " ["INSERT INTO" table "("
+                                (str-cat "," (map ->string columns))
+                                ") VALUES ("
+                                (str-cat "," (take (count columns) (repeat "?")))
+                                ")"])))
+    (throw (Exception. "column/value pairs not balanced"))))
+
+(defmacro insert-into
+  "Insert data into a table."
+  [table & col-val-pairs]
+  `(insert-into* ~@(map quasiquote* (cons table col-val-pairs))))
+
+(defn update*
+  "Driver for the update macro. Don't call directly."
+  [table col-val-pairs pred-spec]
+  (if (even? (count col-val-pairs))
+    (let [columns         (vec (take-nth 2 col-val-pairs))
+          values          (vec (take-nth 2 (rest col-val-pairs)))
+          [pred-spec env] (build-env pred-spec values)]
+      (struct-map sql-update
+                  :type       ::Update
+                  :table      table
+                  :columns    columns
+                  :predicates pred-spec
+                  :env        env
+                  :sql
+                  (str-cat " " ["UPDATE" table
+                                "SET"    (str-cat "," (map (comp
+                                                             #(str % " = ?")
+                                                             ->string)
+                                                           columns))
+                                "WHERE"  (infixed pred-spec)])))
+    (throw (Exception. "column/value pairs not balanced"))))
+
+(defmacro update
+  "Update the given columns of the given table with the associated values
+  where the predicates are satisfied. The relation between columns and
+  values is given as a let-style binding vector."
+  [table col-val-pairs pred-spec]
+  `(update* ~@(map quasiquote* [table col-val-pairs pred-spec])))
+
+(defn delete-from*
+  "Driver for the delete-from macro. Don't call directly."
+  [table pred-spec]
+  (let [[pred-spec env] (build-env pred-spec [])]
+    (struct-map sql-delete
+                :type       ::Delete
+                :table      table
+                :predicates pred-spec
+                :env        env
+                :sql
+                (str-cat " " ["DELETE FROM" table
+                              "WHERE"       (infixed pred-spec)]))))
+
+(defmacro delete-from
+  "Delete the entries matching the given predicates from the given table."
+  [table pred-spec]
+  `(delete-from* ~@(map quasiquote* [table pred-spec])))
+
+; Table Handling
+
+(defn create-table*
+  "Driver function for create-table macro. Don't use directly."
+  [table & columns]
+  (let [columns (map ->vector columns)]
+    (struct-map sql-create-table
+                :type    ::CreateTable
+                :table   table
+                :columns (vec columns)
+                :sql
+                (str-cat " " ["CREATE TABLE" table "("
+                              (str-cat "," (map (comp
+                                                  (partial str-cat " ")
+                                                  (partial map ->string))
+                                                columns))
+                              ")"]))))
+
+(defmacro create-table
+  "Create a table of the given name and the given columns."
+  [table & columns]
+  `(create-table* ~@(map quasiquote* (cons table columns))))
