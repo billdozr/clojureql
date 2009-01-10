@@ -137,4 +137,7 @@
                   (map #(hash-map :our-result (str (:storename %)
                                                    " sold $"
                                                    (:totalsales %) "!"))
-                       result))))
+                       result)))
+
+  ; Cover our tracks.
+  (sql/run *conn-info* (sql/drop-table StoreInformation)))
