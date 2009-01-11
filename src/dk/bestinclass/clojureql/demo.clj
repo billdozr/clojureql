@@ -13,13 +13,14 @@
 ; Adapt the following connection-info to your local database.
 (def *conn-info*
   (condp = *database-system*
-    :MySQL  (sql/connect-info "mysql"
-                              "localhost/mysql"
-                              "mysqluser"
-                              "mysqlpsw")
-    :SQLite {:jdbc-url "jdbc:sqlite:demo.db"
-             :username ""
-             :password ""}))
+    :MySQL  (sql/make-connection-info "mysql"
+                                      "//localhost/mysql"
+                                      "mysqluser"
+                                      "mysqlpsw")
+    :SQLite (sql/make-connection-info "sqlite"
+                                      "demo.db"
+                                      ""
+                                      "")))
 
 (def *driver*
   (condp = *database-system*
@@ -73,7 +74,7 @@
   (run-and-show (sql/distinct!
                   (sql/query StoreName StoreInformation)))
 
-  ; Where are the biggest sales?
+  ; Where have we recorded more than 1000 sales?
   (println "SELECT StoreName FROM StoreInformation WHERE Sales > 1000")
   (run-and-show (sql/query StoreName
                            StoreInformation

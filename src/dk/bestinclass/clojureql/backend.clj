@@ -13,14 +13,16 @@
 
 ;; CONNECTION ==============================================
 
-(defstruct connection-info
+(defstruct connect-info
   :jdbc-url
   :username
   :password)
 
-(defn connect-info
-  [protocol host username password]
-  (struct connection-info (format "jdbc:%s://%s" protocol host) username password))
+(defn make-connection-info
+  ([protocol host username password]
+     (struct connection-info (format "jdbc:%s:%s" protocol host) username password))
+  ([protocol host]
+     (struct connection-info (format "jdbc:%s:%s" protocol host) nil nil)))
 
 ;; MACROS ==================================================
 
@@ -151,7 +153,7 @@
                        The second argument is an AST produced by Query.
                        Finally, a body for execution which has access to the results.
 
-    Ex: (let [db1 (connect-info ...)]
+    Ex: (let [db1 (make-connection-info ...)]
           (run [db1 myresults]
            (query [col1 col2] database.table1 (> col1 col2))
            (doseq [result myresults]

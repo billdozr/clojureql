@@ -268,7 +268,7 @@
     (let [[function col & args] col-spec]
       (if (= (sql-function-type function) :infix)
         (infixed col-spec)
-        (str function "(" (->string col) (str-cat "," args) ")")))
+        (str function "(" (str-cat "," (cons (->string col) args)) ")")))
     col-spec))
 
 ;; AST-BUILDING ============================================
