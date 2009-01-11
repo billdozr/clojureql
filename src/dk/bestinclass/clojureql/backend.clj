@@ -97,6 +97,7 @@
 (derive ::Update         ::ExecuteUpdate)
 (derive ::Insert         ::ExecuteUpdate)
 (derive ::Delete         ::ExecuteUpdate)
+(derive ::AlterTable     ::ExecuteUpdate)
 
 (defmulti
   #^{:arglists '([sql-stmt conn])
@@ -129,6 +130,17 @@
 (defmethod execute-sql ::LetQuery
   [sql-stmt conn]
   ((sql-stmt :fn) conn))
+
+(defmethod execute-sql ::AlterTable
+  [sql-stmt conn]
+  (-> sql-stmt
+      (prepare-statement conn)
+      .executeUpdate))
+
+(defmethod execute-sql ::Batch
+  [sql-stmt conn]
+  (doall
+   (map #(execute-sql % conn) (:statements sql-stmt))))
 
 ;; INTERFACE ================================================
 

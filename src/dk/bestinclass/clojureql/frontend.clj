@@ -56,10 +56,18 @@
 ; Table Handling
 
 (defstruct sql-create-table
-  :type :table :columns :sql)
+  :type :table :columns :primary :sql)
 
 (defstruct sql-drop-table
   :type :table :if-exists :sql)
+
+(defstruct sql-alter-table
+  :type :table :action :sql)
+
+; Special Statements
+
+(defstruct sql-batch-statement
+  :type :statements)
 
 ;; HIERARCHY ===============================================
 
@@ -550,26 +558,64 @@
 
 ; Table Handling
 
+(defn alter-table*
+  [table & options]
+  (println (first options))
+  (let [action     (first options)
+        keycoll    (last options)
+        options    (butlast (rest options))]
+  (struct-map sql-alter-table
+    :type       ::AlterTable
+    :table      table
+    :action     action
+    :sql        (str-cat " " (list "ALTER TABLE"
+                                   table
+                                   action
+                                   (str-cat " " options)
+                                   "(" keycoll ")" )))))
+    
+
+(defmacro alter-table
+  [table & options]
+  `(alter-table* ~@(map quasiquote* (list* table options))))
+
 (defn create-table*
   "Driver function for create-table macro. Don't use directly."
-  [table & columns]
-  (let [columns (map ->vector columns)]
-    (struct-map sql-create-table
-                :type    ::CreateTable
-                :table   table
-                :columns (vec columns)
-                :sql
-                (str-cat " " ["CREATE TABLE" table "("
-                              (str-cat "," (map (comp
-                                                  (partial str-cat " ")
-                                                  (partial map ->string))
-                                                columns))
-                              ")"]))))
+  [table column-vec & options]
+  (let [columns    (->vector column-vec)
+        options    (apply hash-map options)
+        primary    (:primary options)
+        to-string  (fn [specs]
+                     (if (string? specs)
+                       specs
+                       (str specs)))
+        flat-map   (fn flat-map [coll]
+                     (if (list? coll)
+                       (map flat-map coll)
+                       (apply str (str-cat " " coll))))
+        create-ast (struct-map sql-create-table
+                     :type    ::CreateTable
+                     :table   table
+                     :columns columns
+                     :primary (:primary options)
+                     :sql
+                     (let [cols     (apply str (map #(str (flat-map %))
+                                                    (interpose "," (partition 2 columns))))]
+                       (str-cat " " (list* "CREATE TABLE" table "(" cols ")"))))]
+    (if (nil? primary)
+      create-ast
+      (struct-map sql-batch-statement
+        :type       ::Batch
+        :statements [create-ast (alter-table ~table add primary key ~primary)]))))
+        
+      
 
 (defmacro create-table
   "Create a table of the given name and the given columns."
   [table & columns]
   `(create-table* ~@(map quasiquote* (cons table columns))))
+
+
 
 (defn drop-table*
   "Driver function for the drop-table macro. Don't use directly."
