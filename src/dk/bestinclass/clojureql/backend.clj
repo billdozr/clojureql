@@ -13,7 +13,7 @@
 
 ;; CONNECTION ==============================================
 
-(defstruct connect-info
+(defstruct connection-info
   :jdbc-url
   :username
   :password)
