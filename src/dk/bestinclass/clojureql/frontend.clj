@@ -585,10 +585,6 @@
   (let [columns    (->vector column-vec)
         options    (apply hash-map options)
         primary    (:primary options)
-        to-string  (fn [specs]
-                     (if (string? specs)
-                       specs
-                       (str specs)))
         flat-map   (fn flat-map [coll]
                      (if (list? coll)
                        (map flat-map coll)
