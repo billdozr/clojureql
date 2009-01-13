@@ -582,7 +582,7 @@
 (defn create-table*
   "Driver function for create-table macro. Don't use directly."
   [table column-vec & options]
-  (let [columns    (->vector column-vec)
+  (let [columns    (apply array-map column-vec)
         options    (apply hash-map options)
         primary    (:primary options)
         flat-map   (fn flat-map [coll]
@@ -602,7 +602,16 @@
       create-ast
       (struct-map sql-batch-statement
         :type       ::Batch
-        :statements [create-ast (alter-table ~table add primary key ~primary)]))))
+        :statements [create-ast
+                     (when (:primary options)
+                       (alter-table ~table add primary key ~primary))
+                     (when (:auto-inc options)
+                       (let [auto-inc      (:auto-inc options)
+                             auto-inc-type ((:auto-inc options) column-vec)]
+                         (alter-table ~table change ~auto-inc ~auto-inc ~auto-inc-type  AUTO_INCREMENT)))]))))
+                        
+
+
         
       
 
