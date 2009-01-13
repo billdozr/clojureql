@@ -42,9 +42,12 @@
   ; Create the table we will use in the demo.
   (sql/run *conn-info* (condp = *database-system*
                          :MySQL  (sql/create-table StoreInformation
-                                                   [StoreName "varchar(100)"]
-                                                   [Sales "int(11)"]
-                                                   [Date date])
+                                                   [id "int(11)"
+                                                    StoreName "varchar(100)"
+                                                    Sales "int(11)"
+                                                    Date date]
+                                                   :primary id :not-null id :auto-inc id)
+                         
                          :SQLite (sql/create-table StoreInformation
                                                    StoreName
                                                    Sales
