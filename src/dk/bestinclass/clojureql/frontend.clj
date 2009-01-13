@@ -560,7 +560,6 @@
 
 (defn alter-table*
   [table & options]
-  (println (first options))
   (let [action     (first options)
         keycoll    (last options)
         options    (butlast (rest options))]
@@ -572,7 +571,9 @@
                                    table
                                    action
                                    (str-cat " " options)
-                                   "(" keycoll ")" )))))
+                                   (if (= 'add action)
+                                     (str "(" keycoll ")" )
+                                     keycoll))))))
     
 
 (defmacro alter-table
@@ -582,7 +583,7 @@
 (defn create-table*
   "Driver function for create-table macro. Don't use directly."
   [table column-vec & options]
-  (let [columns    (apply array-map column-vec)
+  (let [columns    (->vector column-vec)
         options    (apply hash-map options)
         primary    (:primary options)
         flat-map   (fn flat-map [coll]
@@ -600,15 +601,20 @@
                        (str-cat " " (list* "CREATE TABLE" table "(" cols ")"))))]
     (if (nil? primary)
       create-ast
-      (struct-map sql-batch-statement
-        :type       ::Batch
-        :statements [create-ast
-                     (when (:primary options)
-                       (alter-table ~table add primary key ~primary))
-                     (when (:auto-inc options)
-                       (let [auto-inc      (:auto-inc options)
-                             auto-inc-type ((:auto-inc options) column-vec)]
-                         (alter-table ~table change ~auto-inc ~auto-inc ~auto-inc-type  AUTO_INCREMENT)))]))))
+      (let [column-vec  (apply array-map column-vec)]
+        (struct-map sql-batch-statement
+          :type       ::Batch
+          :statements [create-ast
+                       (when (:primary options)
+                         (alter-table ~table add primary key ~primary))
+                       (when (:not-null options)
+                         (let [not-null      (:not-null options)
+                               not-null-type (not-null column-vec)]
+                           (alter-table ~table change ~not-null ~not-null ~not-null-type NOT NULL)))
+                       (when (:auto-inc options)
+                         (let [auto-inc      (:auto-inc options)
+                               auto-inc-type ((:auto-inc options) column-vec)]
+                           (alter-table ~table change ~auto-inc ~auto-inc ~auto-inc-type  AUTO_INCREMENT)))])))))
                         
 
 
