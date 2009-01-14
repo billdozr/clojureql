@@ -222,10 +222,11 @@
      (vector? target)    (seq-way target))))
 
 (defn ->comma-sep
-  [target]
-  (if-not (vector? target)
-          target
-          (str "(" (str-cat ", "  target) ")")))
+  ([target] (->comma-sep "" target))
+  ([wrapper target]
+     (if-not (vector? target)
+             target
+             (str (first wrapper) (str-cat ", "  target) (second wrapper)))))
 
          
 ;; COMPILER ================================================
@@ -577,15 +578,18 @@
   (let [action     (first options)
         keycoll    (last options)
         options    (butlast (rest options))]
-  (struct-map sql-alter-table
-    :type       ::AlterTable
-    :table      table
-    :action     action
-    :sql        (str-cat " " (list "ALTER TABLE"
-                                   table
-                                   action
-                                   (str-cat " " options)
-                                   (str "(" keycoll ")" ))))))
+    (println options)
+    (struct-map sql-alter-table
+      :type       ::AlterTable
+      :table      table
+      :action     action
+      :sql        (str-cat " " (list "ALTER TABLE"
+                                     table
+                                     action
+                                     (str-cat " " options)
+                                     (if (= '(primary key) options)
+                                       (str "(" keycoll ")" )
+                                       (->comma-sep keycoll)))))))
 
 (defmethod alter-table* 'change
   [table & options]
@@ -600,6 +604,17 @@
                                    table
                                    action
                                    (str-cat " " options) keycoll)))))
+
+(defmethod alter-table* 'modify
+  [table & options]
+  (let [col-name  (first (rest options))
+        new-type  (last  (rest options))]
+  (struct-map sql-alter-table
+    :type       ::AlterTable
+    :table      table
+    :action     ::Modify
+    :sql        (str-cat " " (list "ALTER TABLE" table "MODIFY" col-name new-type)))))
+
 
 (defmethod alter-table* 'drop
   [table & options]
