@@ -149,5 +149,15 @@
                                                    (:totalsales %) "!"))
                        result)))
 
+  ; Modify existing tables
+  (println "ALTER TABLE StoreInformation ADD PRIMARY KEY ( id )")
+  (run *conn-info* (alter-table StoreInformation add primary key id))
+
+  (println "ALTER TABLE StoreInformation CHANGE Sales YearlySales int(11)")
+  (run *conn-info* (alter-table StoreInformation change Sales YearlySales "int(11)"))
+
+  (println "ALTER TABLE StoreInformation MODIFY Sales int(5)")
+  (run *conn-info* (alter-table StoreInformation modify Sales "int(5)"))
+
   ; Cover our tracks.
   (sql/run *conn-info* (sql/drop-table StoreInformation)))
