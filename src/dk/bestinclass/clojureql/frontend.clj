@@ -212,13 +212,24 @@
   [sep coll]
   (apply str (interpose sep coll)))
 
+(defn case-str
+  [fn-format target]
+  (let [target (into [] target)
+        seq-way (fn [_]
+                  (fn-format (apply str (interpose " " _))))]
+    (cond 
+     (string? target)    (fn-format target)
+     (vector? target)    (seq-way target))))
+
+(defn ->comma-sep
+  [target]
+  (if-not (vector? target)
+          target
+          (str "(" (str-cat ", "  target) ")")))
+
+         
 ;; COMPILER ================================================
 
-(defn pa
-  " pa=Print AST, helper func for debugging purposes "
-  [ast]
-  (doseq [entry ast]
-    (prn entry)))
 
 (defn build-env
   "Build environment vector. Replace extracted values with ?."
@@ -558,7 +569,10 @@
 
 ; Table Handling
 
-(defn alter-table*
+(defmulti alter-table*
+  (fn [table & options] (first options)))
+
+(defmethod alter-table* 'add
   [table & options]
   (let [action     (first options)
         keycoll    (last options)
@@ -571,9 +585,41 @@
                                    table
                                    action
                                    (str-cat " " options)
-                                   (if (= 'add action)
-                                     (str "(" keycoll ")" )
-                                     keycoll))))))
+                                   (str "(" keycoll ")" ))))))
+
+(defmethod alter-table* 'change
+  [table & options]
+  (let [action     (first options)
+        keycoll    (last options)
+        options    (butlast (rest options))]
+  (struct-map sql-alter-table
+    :type       ::AlterTable
+    :table      table
+    :action     action
+    :sql        (str-cat " " (list "ALTER TABLE"
+                                   table
+                                   action
+                                   (str-cat " " options) keycoll)))))
+
+(defmethod alter-table* 'drop
+  [table & options]
+  (if (= options '(drop primary key))
+    (struct-map sql-alter-table
+      :type          ::AlterTable
+      :table         table
+      :action        ::Drop
+      :sql   (str "ALTER TABLE " table " DROP PRIMARY KEY"))
+    (let [target-type (butlast (rest options))
+          target      (last    (rest options))]
+      (struct-map sql-alter-table
+        :type       ::AlterTable
+        :table      table
+        :action     ::Drop
+        :sql        (str-cat " "
+                             (list "ALTER TABLE" table "DROP"
+                                   (case-str #(.toUpperCase (str %)) target-type)
+                                   (->comma-sep target)))))))
+                                   
     
 
 (defmacro alter-table
@@ -599,7 +645,7 @@
                      (let [cols     (apply str (map #(str (flat-map %))
                                                     (interpose "," (partition 2 columns))))]
                        (str-cat " " (list* "CREATE TABLE" table "(" cols ")"))))]
-    (if (nil? primary)
+    (if (nil? options)
       create-ast
       (let [column-vec  (apply array-map column-vec)]
         (struct-map sql-batch-statement
@@ -614,7 +660,8 @@
                        (when (:auto-inc options)
                          (let [auto-inc      (:auto-inc options)
                                auto-inc-type ((:auto-inc options) column-vec)]
-                           (alter-table ~table change ~auto-inc ~auto-inc ~auto-inc-type  AUTO_INCREMENT)))])))))
+                           (alter-table ~table change ~auto-inc
+                                        ~auto-inc ~auto-inc-type  AUTO_INCREMENT)))])))))
                         
 
 
@@ -622,7 +669,11 @@
       
 
 (defmacro create-table
-  "Create a table of the given name and the given columns."
+  "Create a table of the given name and the given columns.
+
+   ex.
+    (create-table foo [id 'int(11)' name 'varchar(100)' lifestory 'text']
+                      :primary id :not-null id :auto-inc id"
   [table & columns]
   `(create-table* ~@(map quasiquote* (cons table columns))))
 

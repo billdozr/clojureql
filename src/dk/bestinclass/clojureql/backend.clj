@@ -180,6 +180,13 @@
 
 ;; UTILITIES ===============================================
 
+(defn pa
+  " pa=Print AST, helper func for debugging purposes "
+  [ast]
+  (doseq [entry ast]
+    (prn entry)))
+
+
 (defmacro print-rows
   [con query]
   `(run [~con results#]

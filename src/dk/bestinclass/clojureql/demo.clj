@@ -46,12 +46,18 @@
                                                     StoreName "varchar(100)"
                                                     Sales "int(11)"
                                                     Date date]
-                                                   :primary id :not-null id :auto-inc id)
+                                                   :primary  id
+                                                   :not-null id
+                                                   :auto-inc id)
                          
-                         :SQLite (sql/create-table StoreInformation
+                         :SQLite (sql/create-table id
+                                                   StoreInformation
                                                    StoreName
                                                    Sales
-                                                   Date)))
+                                                   Date
+                                                   :primary  id
+                                                   :not-null id
+                                                   :auto-inc id)))
 
   ; Populate the table with data.
   (let [make-stmt (fn [[store sale date]]
