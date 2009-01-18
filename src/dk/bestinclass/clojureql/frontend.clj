@@ -662,25 +662,21 @@
                        (str-cat " " (list* "CREATE TABLE" table "(" cols ")"))))]
     (if (nil? options)
       create-ast
-      (let [column-vec  (apply array-map column-vec)]
+      (let [column-vec  (apply array-map column-vec)
+            alterations [(when (:primary options)
+                          (alter-table ~table add primary key ~primary))
+                         (when (:not-null options)
+                           (let [not-null      (:not-null options)
+                                 not-null-type (not-null column-vec)]
+                             (alter-table ~table change ~not-null ~not-null ~not-null-type NOT NULL)))
+                         (when (:auto-inc options)
+                           (let [auto-inc      (:auto-inc options)
+                                 auto-inc-type ((:auto-inc options) column-vec)]
+                             (alter-table ~table change ~auto-inc
+                                          ~auto-inc ~auto-inc-type  AUTO_INCREMENT)))]]
         (struct-map sql-batch-statement
-          :type       ::Batch
-          :statements [create-ast
-                       (when (:primary options)
-                         (alter-table ~table add primary key ~primary))
-                       (when (:not-null options)
-                         (let [not-null      (:not-null options)
-                               not-null-type (not-null column-vec)]
-                           (alter-table ~table change ~not-null ~not-null ~not-null-type NOT NULL)))
-                       (when (:auto-inc options)
-                         (let [auto-inc      (:auto-inc options)
-                               auto-inc-type ((:auto-inc options) column-vec)]
-                           (alter-table ~table change ~auto-inc
-                                        ~auto-inc ~auto-inc-type  AUTO_INCREMENT)))])))))
-                        
-
-
-        
+          :type         ::Batch
+          :statements   (remove nil? (cons create-ast alterations)))))))
       
 
 (defmacro create-table
