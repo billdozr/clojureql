@@ -1,4 +1,5 @@
- *   Clojure
+ *   ClojureQL
+ *
  *   Copyright (c) Lau B. Jensen and Meikel Brandmeyer. All rights reserved.
  *   The use and distribution terms for this software are covered by the
  *   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
@@ -29,21 +30,21 @@ Consider the following:
 You need to create a database table, with a primary key.
 
 On Mysql, this is the way to do it:
-CREATE TABLE Customer (SID integer, Last_Name varchar(30), First_Name varchar(30), PRIMARY KEY (SID));
+CREATE TABLE Customer (SID integer, Name varchar(30), PRIMARY KEY (SID));
 
 On Oracle, its:
-CREATE TABLE Customer (SID integer PRIMARY KEY, Last_Name varchar(30), First_Name varchar(30));
+CREATE TABLE Customer (SID integer PRIMARY KEY, Name varchar(30));
 
 In ClojureQL, its:
-(create-table Customer [SID "int" Last_Name "varchar(30)" First_Name "varchar(30)"] :primary SID)
+(create-table Customer [SID "int" Name "varchar(30)"] :primary SID)
 
-This works for all SQL implementations, and you dont even have to specificy which DB your working on!
+This works for all SQL implementations, and you dont even have to specificy which type of DB you're working on!
 (notice: types are given in literal type, to maximize compatibility)
 ---------------------------------------------
 
 You can directly import our classes by placing them on your class-path and starting
 Clojure:
-         java -cp clojure.jar clojure.lang.Repl
+         java -cp clojure.jar:/path/to/clojureQL clojure.lang.Repl
 
 This gives you a working REPL. From that REPL you can import our code using
          (use :reload 'dk.bestinclass.clojureql) RET
