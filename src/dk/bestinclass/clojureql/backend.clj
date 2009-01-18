@@ -187,6 +187,12 @@
     (prn entry)))
 
 
+(defn vb
+  " vb=View batch, helper func for debugging purposes "
+  [ast]
+  (doseq [row (:statements ast)]
+    (println (:sql row))))
+
 (defmacro print-rows
   [con query]
   `(run [~con results#]

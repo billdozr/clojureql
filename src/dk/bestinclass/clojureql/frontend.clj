@@ -655,12 +655,12 @@
                      :type    ::CreateTable
                      :table   table
                      :columns columns
-                     :primary (:primary options)
+                     :primary primary
                      :sql
-                     (let [cols     (apply str (map #(str (flat-map %))
+                     (let [cols     (apply str (map #(flat-map %)
                                                     (interpose "," (partition 2 columns))))]
                        (str-cat " " (list* "CREATE TABLE" table "(" cols ")"))))]
-    (if (nil? options)
+    (if (empty? options)
       create-ast
       (let [column-vec  (apply array-map column-vec)
             alterations [(when (:primary options)
