@@ -9,7 +9,7 @@
  *   You must not remove this notice, or any other, from this software.
 
 ClojureQL is a joint venture between Lau B. Jensen and Meikel Brandmeyer,
-started in 15. December 2008.
+started on 15. December 2008.
 
 ---------------------------------------------
 
@@ -51,7 +51,7 @@ This gives you a working REPL. From that REPL you can import our code using
 
 Where RET is pressing the Return key to execute. Once this returns nil, the classes
 are loaded and you can begin working with your SQL DB, without paying any attention
-to which type of Database youre working on, and its specific syntax.
+to which type of Database youre working on or its specific syntax.
 
 
 
