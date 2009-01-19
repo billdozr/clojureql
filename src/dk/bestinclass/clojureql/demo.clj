@@ -8,7 +8,7 @@
 
 ; Choose your database. Currently MySQL and SQLite are supported
 ; in the examples.
-(def *database-system* :SQLite)
+(def *database-system* :Derby)
 
 ; Adapt the following connection-info to your local database.
 (def *conn-info*
@@ -20,12 +20,17 @@
     :SQLite (sql/make-connection-info "sqlite"
                                       "demo.db"
                                       ""
+                                      "")
+    :Derby  (sql/make-connection-info "derby"
+                                      "derby.demo"
+                                      ""
                                       "")))
 
 (def *driver*
   (condp = *database-system*
     :MySQL  "com.mysql.jdbc.Driver"
-    :SQLite "org.sqlite.JDBC"))
+    :SQLite "org.sqlite.JDBC"
+    :Derby  "org.apache.derby.jdbc.EmbeddedDriver"))
 
 (defn run-and-show
   [query]
@@ -49,12 +54,21 @@
                                                    :primary  id
                                                    :not-null id
                                                    :auto-inc id)
-                         
-                         :SQLite (sql/create-table id
-                                                   StoreInformation
-                                                   StoreName
-                                                   Sales
-                                                   Date
+
+                         :SQLite (sql/create-table StoreInformation
+                                                   [id NUMERIC
+                                                    StoreName TEXT
+                                                    Sales NUMERIC
+                                                    Date NUMERIC]
+                                                   :primary  id
+                                                   :not-null id
+                                                   :auto-inc id)
+
+                         :Derby  (sql/create-table StoreInformation
+                                                   [id int
+                                                    StoreName "varchar(100)"
+                                                    Sales int
+                                                    Date date]
                                                    :primary  id
                                                    :not-null id
                                                    :auto-inc id)))
@@ -151,13 +165,13 @@
 
   ; Modify existing tables
   (println "ALTER TABLE StoreInformation ADD PRIMARY KEY ( id )")
-  (run *conn-info* (alter-table StoreInformation add primary key id))
+  (sql/run *conn-info* (sql/alter-table StoreInformation add primary key id))
 
   (println "ALTER TABLE StoreInformation CHANGE Sales YearlySales int(11)")
-  (run *conn-info* (alter-table StoreInformation change Sales YearlySales "int(11)"))
+  (sql/run *conn-info* (sql/alter-table StoreInformation change Sales YearlySales "int(11)"))
 
   (println "ALTER TABLE StoreInformation MODIFY Sales int(5)")
-  (run *conn-info* (alter-table StoreInformation modify Sales "int(5)"))
+  (sql/run *conn-info* (sql/alter-table StoreInformation modify Sales "int(5)"))
 
   ; Cover our tracks.
   (sql/run *conn-info* (sql/drop-table StoreInformation)))
