@@ -229,7 +229,8 @@
              target
              (str (first wrapper) (str-cat ", "  target) (second wrapper)))))
 
-;; AST-BUILDING ============================================
+;; COMPILER ================================================
+
 
 (defn build-env
   "Build environment vector. Replace extracted values with ?."
@@ -554,6 +555,7 @@
                              (alter-table ~table change ~auto-inc
                                           ~auto-inc ~auto-inc-type  AUTO_INCREMENT)))]]
         (apply batch-statements create-ast (remove nil? alterations))))))
+
 
 (defmacro create-table
   "Create a table of the given name and the given columns.
