@@ -55,6 +55,211 @@
   (Class/forName driver)
   nil)
 
+;; SQL COMPILATION ==========================================
+
+(defn compile-alias
+  "Checks whether the given column has an alias in the aliases map. If so
+  it is converted to a SQL alias of the form „column AS alias“."
+  [col-or-table-spec col-or-table aliases]
+  (if-let [aka (aliases col-or-table)]
+    (str (->string col-or-table-spec) " AS " (->string aka))
+    col-or-table-spec))
+
+(defn- sql-function-type
+  "Returns the type of the given SQL function. This is basically only
+  interesting to catch the mathematical operators, which are infixed.
+  Other function calls are handled normally."
+  [sql-fun]
+  (let [infix? (comp #{"+" "-" "*" "/" "and" "or" "="
+                       "<=" ">=" "<" ">" "<>" "like"}
+                     ->string)]
+    (if (infix? sql-fun)
+      :infix
+      :funcall)))
+
+(declare compile-function)
+
+(defn infixed
+  [form]
+  (str "(" (str-cat " " (interpose (->string (first form))
+                                   (map compile-function (rest form))))
+       ")"))
+
+(defn compile-function
+  [col-spec]
+  "Compile a function specification into a string."
+  (if (or (list? col-spec) (vector? col-spec))
+    (let [[function col & args] col-spec]
+      (if (= (sql-function-type function) :infix)
+        (infixed col-spec)
+        (str function "(" (str-cat "," (cons (->string col) args)) ")")))
+    col-spec))
+(defmulti
+  #^{:arglists '([stmt db])
+     :doc "Compile the given SQL statement for the given database."}
+  compile-sql
+  (fn [stmt db] [(stmt :type) db]))
+
+(defmethod compile-sql [::Select :default]
+  [stmt _]
+  (let [{:keys [columns tables predicates col-aliases table-aliases]} stmt
+        cols  (str-cat ","
+                      (map (fn [spec]
+                             (let [col (column-from-spec spec)]
+                               (-> spec
+                                 compile-function
+                                 (compile-alias col col-aliases)
+                                 ->string)))
+                           columns))
+        tabls (str-cat ","
+                      (map (fn [spec]
+                             (let [table (table-from-spec spec)]
+                               (-> spec
+                                 (compile-alias table table-aliases)
+                                 ->string)))
+                           tables))
+        stmnt (list* "SELECT" cols
+                     "FROM"   tabls
+                     (when predicates
+                       (list "WHERE" (infixed predicates))))]
+    (str-cat " " stmnt)))
+
+(defmethod compile-sql [::OrderedSelect :default]
+  [stmt db]
+  (let [{:keys [query order columns]} stmt]
+    (str-cat " " [(compile-sql query db)
+                  "ORDER BY"
+                  (str-cat "," (map ->string columns))
+                  (condp = order
+                    :ascending  "ASC"
+                    :descending "DESC")])))
+
+(defmethod compile-sql [::GroupedSelect :default]
+  [stmt db]
+  (let [{:keys [query columns]} stmt]
+    (str-cat " " [(compile-sql query db)
+                  "GROUP BY"
+                  (str-cat "," (map ->string columns))])))
+
+(defmethod compile-sql [::HavingSelect :default]
+  [stmt db]
+  (let [{:keys [query predicates]} stmt]
+    (str-cat " " [(compile-sql query db)
+                  "HAVING"
+                  (compile-function predicates)])))
+
+(defmethod compile-sql [::DistinctSelect :default]
+  [stmt db]
+  (apply str "SELECT DISTINCT" (drop 6 (-> stmt :query (compile-sql db)))))
+
+(defmethod compile-sql [::Union :default]
+  [stmt db]
+  (let [{:keys [queries all]} stmt]
+    (str "(" (str-cat " " (interpose (if all
+                                       ") UNION ALL ("
+                                       ") UNION (")
+                                     (map #(compile-sql % db) queries)))
+         ")")))
+
+(defmethod compile-sql [::Intersect :default]
+  [stmt db]
+  (let [{:keys [queries]} stmt]
+    (str "(" (str-cat " " (interpose ") INTERSECT ("
+                                     (map #(compile-sql % db) queries)))
+         ")")))
+
+(defmethod compile-sql [::Difference :default]
+  [stmt db]
+  (let [{:keys [queries]} stmt]
+    (str "(" (str-cat " " (interpose ") MINUS ("
+                                     (map #(compile-sql % db) queries)))
+         ")")))
+
+(defmethod compile-sql [::Insert :default]
+  [stmt _]
+  (let [{:keys [table columns]} stmt]
+    (str-cat " " ["INSERT INTO" table "("
+                  (str-cat "," (map ->string columns))
+                  ") VALUES ("
+                  (str-cat "," (take (count columns) (repeat "?")))
+                  ")"])))
+
+(defmethod compile-sql [::Update :default]
+  [stmt _]
+  (let [{:keys [table columns predicates]} stmt]
+    (str-cat " " ["UPDATE" table
+                  "SET"    (str-cat "," (map (comp
+                                               #(str % " = ?")
+                                               ->string)
+                                             columns))
+                  "WHERE"  (infixed predicates)])))
+
+(defmethod compile-sql [::Delete :default]
+  [stmt _]
+  (let [{:keys [table predicates]} stmt]
+    (str-cat " " ["DELETE FROM" table
+                  "WHERE"       (infixed predicates)])))
+
+(defmulti
+  #^{:arglists '([stmt db])
+     :doc "Sub method to compile ALTER statements."}
+  compile-sql-alter
+  (fn [stmt db] [(stmt :subtype) db]))
+
+(defmethod compile-sql [::AlterTable :default]
+  [stmt db]
+  (compile-sql-alter stmt db))
+
+(defmethod compile-sql-alter [::Add :default]
+  [stmt _]
+  (let [{:keys [table action options keycoll]} stmt]
+    (str-cat " " ["ALTER TABLE" table action
+                  (str-cat " " options)
+                  (if (= '(primary key) options)
+                    (str "(" keycoll ")" )
+                    (->comma-sep keycoll))])))
+
+(defmethod compile-sql-alter [::Change :default]
+  [stmt _]
+  (let [{:keys [table action options keycoll]} stmt]
+    (str-cat " " ["ALTER TABLE" table action
+                  (str-cat " " options) keycoll])))
+
+(defmethod compile-sql-alter [::Modify :default]
+  [stmt _]
+  (let [{:keys [table column new-type]} stmt]
+    (str-cat " " ["ALTER TABLE" table "MODIFY" column new-type])))
+
+(defmethod compile-sql-alter [::DropPrimary :default]
+  [stmt _]
+  (let [{:keys [table]} stmt]
+    (str "ALTER TABLE " table " DROP PRIMARY KEY")))
+
+(defmethod compile-sql-alter [::Drop :default]
+  [stmt _]
+  (let [{:keys [table target target-type]} stmt]
+    (str-cat " " ["ALTER TABLE" table "DROP"
+                  (case-str #(.toUpperCase (str %)) target-type)
+                  (->comma-sep target)])))
+
+(defmethod compile-sql [::CreateTable :default]
+  [stmt _]
+  (let [{:keys [table columns]} stmt]
+    (let [cols (str-cat "," (map (fn [[col type]]
+                                   (str (->string col) " " type))
+                                 columns))]
+      (str-cat " " ["CREATE TABLE"
+                    table
+                    "(" cols ")"]))))
+
+(defmethod compile-sql [::DropTable :default]
+  [stmt _]
+  (let [{:keys [table if-exists]} stmt]
+    (str-cat " " ["DROP TABLE"
+                  (when if-exists
+                    "IF EXISTS")
+                  table])))
+
 ;; SQL EXECUTION ============================================
 
 (defn prepare-statement

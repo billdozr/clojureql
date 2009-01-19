@@ -16,28 +16,28 @@
 ; Queries
 
 (defstruct sql-query
-  :type :columns :tables :predicates :column-aliases :table-aliases :env :sql)
+  :type :columns :tables :predicates :column-aliases :table-aliases :env)
 
 (defstruct sql-ordered-query
-  :type :query :order :columns :env :sql)
+  :type :query :order :columns :env)
 
 (defstruct sql-grouped-query
-  :type :query :columns :env :sql)
+  :type :query :columns :env)
 
 (defstruct sql-having-query
-  :type :query :env :sql)
+  :type :query :env)
 
 (defstruct sql-distinct-query
-  :type :query :env :sql)
+  :type :query :env)
 
 (defstruct sql-union
-  :type :all :queries :env :sql)
+  :type :all :queries :env)
 
 (defstruct sql-intersect
-  :type :queries :env :sql)
+  :type :queries :env)
 
 (defstruct sql-difference
-  :type :queries :env :sql)
+  :type :queries :env)
 
 (defstruct sql-let-query
   :type :fn)
@@ -45,24 +45,24 @@
 ; Data Handling
 
 (defstruct sql-insert
-  :type :table :columns :env :sql)
+  :type :table :columns :env)
 
 (defstruct sql-update
-  :type :table :columns :predicates :env :sql)
+  :type :table :columns :predicates :env)
 
 (defstruct sql-delete
-  :type :table :predicates :env :sql)
+  :type :table :predicates :env)
 
 ; Table Handling
 
 (defstruct sql-create-table
-  :type :table :columns :primary :sql)
+  :type :table :columns :primary)
 
 (defstruct sql-drop-table
-  :type :table :if-exists :sql)
+  :type :table :if-exists)
 
 (defstruct sql-alter-table
-  :type :table :action :sql)
+  :type :table :action)
 
 ; Special Statements
 
@@ -228,9 +228,7 @@
              target
              (str (first wrapper) (str-cat ", "  target) (second wrapper)))))
 
-         
-;; COMPILER ================================================
-
+;; AST-BUILDING ============================================
 
 (defn build-env
   "Build environment vector. Replace extracted values with ?."
@@ -252,46 +250,6 @@
                                 [[function col value] env])
         :else (throw (Exception.
                        (str "Unsupported predicate form: " function)))))))
-
-(defn compile-alias
-  "Checks whether the given column has an alias in the aliases map. If so
-  it is converted to a SQL alias of the form „column AS alias“."
-  [col-or-table-spec col-or-table aliases]
-  (if-let [aka (aliases col-or-table)]
-    (str (->string col-or-table-spec) " AS " (->string aka))
-    col-or-table-spec))
-
-(defn- sql-function-type
-  "Returns the type of the given SQL function. This is basically only
-  interesting to catch the mathematical operators, which are infixed.
-  Other function calls are handled normally."
-  [sql-fun]
-  (let [infix? (comp #{"+" "-" "*" "/" "and" "or" "="
-                       "<=" ">=" "<" ">" "<>" "like"}
-                     ->string)]
-    (if (infix? sql-fun)
-      :infix
-      :funcall)))
-
-(declare compile-function)
-
-(defn infixed
-  [form]
-  (str "(" (str-cat " " (interpose (->string (first form))
-                                   (map compile-function (rest form))))
-       ")"))
-
-(defn compile-function
-  [col-spec]
-  "Compile a function specification into a string."
-  (if (or (list? col-spec) (vector? col-spec))
-    (let [[function col & args] col-spec]
-      (if (= (sql-function-type function) :infix)
-        (infixed col-spec)
-        (str function "(" (str-cat "," (cons (->string col) args)) ")")))
-    col-spec))
-
-;; AST-BUILDING ============================================
 
 ; Queries
 
@@ -315,28 +273,7 @@
                 :predicates     pred-spec
                 :column-aliases col-aliases
                 :table-aliases  table-aliases
-                :env            env
-                :sql
-                (let [cols   (str-cat ","
-                               (map (fn [spec]
-                                      (let [col (column-from-spec spec)]
-                                        (-> spec
-                                          compile-function
-                                          (compile-alias col col-aliases)
-                                          ->string)))
-                                    col-spec))
-                      tables (str-cat ","
-                               (map (fn [spec]
-                                      (let [table (table-from-spec spec)]
-                                        (-> spec
-                                          (compile-alias table table-aliases)
-                                          ->string)))
-                                    table-spec))
-                      stmnt  (list* "SELECT" cols
-                                    "FROM"   tables
-                                    (when pred-spec
-                                      (list "WHERE" (infixed pred-spec))))]
-                  (str-cat " " stmnt)))))
+                :env            env)))
 
 (defmacro query
   "Define a SELECT query."
@@ -358,13 +295,7 @@
                 :query   kwery
                 :order   order
                 :columns columns
-                :env     (kwery :env)
-                :sql     (str-cat " " [(kwery :sql)
-                                       "ORDER BY"
-                                       (str-cat "," (map ->string columns))
-                                       (condp = order
-                                         :ascending  "ASC"
-                                         :descending "DESC")]))))
+                :env     (kwery :env))))
 
 (defmacro order-by
   "Modify the given query to be order according to the given columns. The first
@@ -382,10 +313,7 @@
                 :type    ::GroupedSelect
                 :query   kwery
                 :columns columns
-                :env     (kwery :env)
-                :sql     (str-cat " " [(kwery :sql)
-                                       "GROUP BY"
-                                       (str-cat "," (map ->string columns))]))))
+                :env     (kwery :env))))
 
 (defmacro group-by
   "Modify the given query to be group by the given columns."
@@ -399,12 +327,10 @@
     (throw (Exception. (str "Unexpected query type: " offender))))
   (let [[pred-spec env] (build-env pred-spec (kwery :env))]
     (struct-map sql-having-query
-                :type     ::HavingSelect
-                :query    kwery
-                :env      env
-                :sql      (str-cat " " [(kwery :sql)
-                                        "HAVING"
-                                        (compile-function pred-spec)]))))
+                :type       ::HavingSelect
+                :query      kwery
+                :predicates pred-spec
+                :env        env)))
 
 (defmacro having
   "Add a HAVING clause to the given query."
@@ -419,8 +345,7 @@
   (struct-map sql-distinct-query
               :type  ::DistinctSelect
               :query kwery
-              :env   (kwery :env)
-              :sql   (apply str "SELECT DISTINCT" (drop 6 (kwery :sql)))))
+              :env   (kwery :env)))
 
 (defn union
   "Build the union of the given queries. The first argument may be the keyword
@@ -436,13 +361,7 @@
                   :type    ::Union
                   :all     all
                   :queries kweries
-                  :env     (vec (mapcat :env kweries))
-                  :sql     (str "("
-                                (str-cat " " (interpose (if all
-                                                          ") UNION ALL ("
-                                                          ") UNION (")
-                                                        (map :sql kweries)))
-                                ")")))))
+                  :env     (vec (mapcat :env kweries))))))
 
 (defn intersect
   "Build the intersection of the given queries."
@@ -453,11 +372,7 @@
     (struct-map sql-intersect
                 :type    ::Intersect
                 :queries kweries
-                :env     (vec (mapcat :env kweries))
-                :sql     (str "("
-                              (str-cat " " (interpose ") INTERSECT ("
-                                                      (map :sql kweries)))
-                              ")"))))
+                :env     (vec (mapcat :env kweries)))))
 
 (defn difference
   "Build the difference of the given queries."
@@ -468,11 +383,7 @@
     (struct-map sql-difference
                 :type    ::Difference
                 :queries kweries
-                :env     (vec (mapcat :env kweries))
-                :sql     (str "("
-                              (str-cat " " (interpose ") MINUS ("
-                                                      (map :sql kweries)))
-                              ")"))))
+                :env     (vec (mapcat :env kweries)))))
 
 (declare execute-sql)
 
@@ -507,13 +418,7 @@
                   :type    ::Insert
                   :table   table
                   :columns columns
-                  :env     values
-                  :sql
-                  (str-cat " " ["INSERT INTO" table "("
-                                (str-cat "," (map ->string columns))
-                                ") VALUES ("
-                                (str-cat "," (take (count columns) (repeat "?")))
-                                ")"])))
+                  :env     values))
     (throw (Exception. "column/value pairs not balanced"))))
 
 (defmacro insert-into
@@ -533,14 +438,7 @@
                   :table      table
                   :columns    columns
                   :predicates pred-spec
-                  :env        env
-                  :sql
-                  (str-cat " " ["UPDATE" table
-                                "SET"    (str-cat "," (map (comp
-                                                             #(str % " = ?")
-                                                             ->string)
-                                                           columns))
-                                "WHERE"  (infixed pred-spec)])))
+                  :env        env))
     (throw (Exception. "column/value pairs not balanced"))))
 
 (defmacro update
@@ -558,10 +456,7 @@
                 :type       ::Delete
                 :table      table
                 :predicates pred-spec
-                :env        env
-                :sql
-                (str-cat " " ["DELETE FROM" table
-                              "WHERE"       (infixed pred-spec)]))))
+                :env        env)))
 
 (defmacro delete-from
   "Delete the entries matching the given predicates from the given table."
@@ -578,64 +473,53 @@
   (let [action     (first options)
         keycoll    (last options)
         options    (butlast (rest options))]
-    (println options)
     (struct-map sql-alter-table
-      :type       ::AlterTable
-      :table      table
-      :action     action
-      :sql        (str-cat " " (list "ALTER TABLE"
-                                     table
-                                     action
-                                     (str-cat " " options)
-                                     (if (= '(primary key) options)
-                                       (str "(" keycoll ")" )
-                                       (->comma-sep keycoll)))))))
+                :type    ::AlterTable
+                :subtype ::Add
+                :table   table
+                :action  action
+                :options options
+                :keycoll keycoll)))
 
 (defmethod alter-table* 'change
   [table & options]
   (let [action     (first options)
         keycoll    (last options)
         options    (butlast (rest options))]
-  (struct-map sql-alter-table
-    :type       ::AlterTable
-    :table      table
-    :action     action
-    :sql        (str-cat " " (list "ALTER TABLE"
-                                   table
-                                   action
-                                   (str-cat " " options) keycoll)))))
+    (struct-map sql-alter-table
+                :type    ::AlterTable
+                :subtype ::Change
+                :table   table
+                :action  action
+                :options options
+                :keycoll keycoll)))
 
 (defmethod alter-table* 'modify
   [table & options]
   (let [col-name  (first (rest options))
         new-type  (last  (rest options))]
-  (struct-map sql-alter-table
-    :type       ::AlterTable
-    :table      table
-    :action     ::Modify
-    :sql        (str-cat " " (list "ALTER TABLE" table "MODIFY" col-name new-type)))))
-
+    (struct-map sql-alter-table
+                :type     ::AlterTable
+                :subtype  ::Modify
+                :table    table
+                :column   col-name
+                :new-type new-type)))
 
 (defmethod alter-table* 'drop
   [table & options]
   (if (= options '(drop primary key))
     (struct-map sql-alter-table
-      :type          ::AlterTable
-      :table         table
-      :action        ::Drop
-      :sql   (str "ALTER TABLE " table " DROP PRIMARY KEY"))
+                :type    ::AlterTable
+                :subtype :DropPrimary
+                :table   table)
     (let [target-type (butlast (rest options))
           target      (last    (rest options))]
       (struct-map sql-alter-table
-        :type       ::AlterTable
-        :table      table
-        :action     ::Drop
-        :sql        (str-cat " "
-                             (list "ALTER TABLE" table "DROP"
-                                   (case-str #(.toUpperCase (str %)) target-type)
-                                   (->comma-sep target)))))))
-                                   
-    
+                  :type        ::AlterTable
+                  :subtype     ::Drop
+                  :table       table
+                  :target-type target-type
+                  :target      target))))
 
 (defmacro alter-table
   [table & options]
@@ -646,25 +530,16 @@
   [table column-vec & options]
   (let [columns    (->vector column-vec)
         options    (apply hash-map options)
-        primary    (:primary options)
-        flat-map   (fn flat-map [coll]
-                     (if (list? coll)
-                       (map flat-map coll)
-                       (apply str (str-cat " " coll))))
         create-ast (struct-map sql-create-table
-                     :type    ::CreateTable
-                     :table   table
-                     :columns columns
-                     :primary primary
-                     :sql
-                     (let [cols     (apply str (map #(flat-map %)
-                                                    (interpose "," (partition 2 columns))))]
-                       (str-cat " " (list* "CREATE TABLE" table "(" cols ")"))))]
+                               :type    ::CreateTable
+                               :table   table
+                               :columns columns
+                               :options options)]
     (if (empty? options)
       create-ast
       (let [column-vec  (apply array-map column-vec)
             alterations [(when (:primary options)
-                          (alter-table ~table add primary key ~primary))
+                          (alter-table ~table add primary key ~(:primary options)))
                          (when (:not-null options)
                            (let [not-null      (:not-null options)
                                  not-null-type (not-null column-vec)]
@@ -677,7 +552,6 @@
         (struct-map sql-batch-statement
           :type         ::Batch
           :statements   (remove nil? (cons create-ast alterations)))))))
-      
 
 (defmacro create-table
   "Create a table of the given name and the given columns.
@@ -688,8 +562,6 @@
   [table & columns]
   `(create-table* ~@(map quasiquote* (cons table columns))))
 
-
-
 (defn drop-table*
   "Driver function for the drop-table macro. Don't use directly."
   [table & if-exists]
@@ -697,12 +569,7 @@
     (struct-map sql-drop-table
                 :type      ::DropTable
                 :tabel     table
-                :if-exists if-exists
-                :sql
-                (str-cat " " ["DROP TABLE"
-                              (when if-exists
-                                "IF EXISTS")
-                              table]))))
+                :if-exists if-exists)))
 
 (defmacro drop-table
   "Drop the given table. Optionally :if-exists might be specified."
