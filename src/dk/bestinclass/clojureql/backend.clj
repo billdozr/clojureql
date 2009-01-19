@@ -266,7 +266,7 @@
   "Return a prepared statement for the given SQL statement in the
   context of the given connection."
   [sql-stmt conn]
-  (doto (.prepareStatement conn (sql-stmt :sql))
+  (doto (.prepareStatement conn (compile-sql sql-stmt nil))
     (set-env (sql-stmt :env))))
 
 (defn result-seq
