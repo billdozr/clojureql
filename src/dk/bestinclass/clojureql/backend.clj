@@ -302,7 +302,28 @@
 (derive ::Update         ::ExecuteUpdate)
 (derive ::Insert         ::ExecuteUpdate)
 (derive ::Delete         ::ExecuteUpdate)
-(derive ::AlterTable     ::ExecuteUpdate)
+
+(defn with-type
+  "Bless the given statement with the given type."
+  [stmt type]
+  (assoc stmt :type type))
+
+(defn in-transaction*
+  "Execute thunk wrapped into a savepoint transaction."
+  [conn thunk]
+  (let [savepoint (.setSavepoint conn)]
+     (try
+       (let [result (thunk)]
+         (.releaseSavepoint conn savepoint)
+         result)
+       (catch Exception e
+         (.rollback conn savepoint)
+         (throw e)))))
+
+(defmacro in-transaction
+  "Execute body wrapped into a savepoint transaction."
+  [conn & body]
+  `(in-transaction* ~conn (fn [] ~@body)))
 
 (defmulti
   #^{:arglists '([sql-stmt conn])
@@ -313,39 +334,34 @@
   (fn [sql-stmt conn] (sql-stmt :type))
   ::Execute)
 
+(defmethod execute-sql ::Execute
+  [sql-stmt conn]
+  (let [prepd-stmt (prepare-statement sql-stmt conn)]
+    (.execute prepd-stmt)
+    prepd-stmt))
+
 (defmethod execute-sql ::ExecuteQuery
   [sql-stmt conn]
   (-> sql-stmt
-    (prepare-statement conn)
-    .executeQuery
+    (with-type ::Execute)
+    (execute-sql conn)
+    .getResultSet
     result-seq))
 
 (defmethod execute-sql ::ExecuteUpdate
   [sql-stmt conn]
   (-> sql-stmt
-    (prepare-statement conn)
-    .executeUpdate))
-
-(defmethod execute-sql ::Execute
-  [sql-stmt conn]
-  (-> sql-stmt
-    (prepare-statement conn)
-    .execute))
+    (with-type ::Execute)
+    (execute-sql conn)
+    .getUpdateCount))
 
 (defmethod execute-sql ::LetQuery
   [sql-stmt conn]
   ((sql-stmt :fn) conn))
 
-(defmethod execute-sql ::AlterTable
-  [sql-stmt conn]
-  (-> sql-stmt
-      (prepare-statement conn)
-      .executeUpdate))
-
 (defmethod execute-sql ::Batch
   [sql-stmt conn]
-  (doall
-   (map #(execute-sql % conn) (:statements sql-stmt))))
+  (doall (map #(execute-sql % conn) (sql-stmt :statements))))
 
 ;; INTERFACE ================================================
 
