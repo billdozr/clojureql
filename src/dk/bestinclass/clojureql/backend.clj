@@ -351,11 +351,13 @@
 
 (defmacro with-connection
   [[connection connection-info] & body]
-  `(with-open [~connection (java.sql.DriverManager/getConnection
-                            (:jdbc-url ~connection-info)
-                            (:username ~connection-info)
-                            (:password ~connection-info))]
-     ~@body))
+  `(io! "Database interaction cannot happen in a transaction"
+     (let [conn-info# ~connection-info]
+       (with-open [~connection (java.sql.DriverManager/getConnection
+                                 (:jdbc-url conn-info#)
+                                 (:username conn-info#)
+                                 (:password conn-info#))]
+         ~@body))))
 
 (defn run*
   " Driver for run - Dont call directly "
