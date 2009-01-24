@@ -94,13 +94,14 @@
         (infixed col-spec)
         (str function "(" (str-cat "," (cons (->string col) args)) ")")))
     col-spec))
+
 (defmulti
   #^{:arglists '([stmt db])
      :doc "Compile the given SQL statement for the given database."}
   compile-sql
   (fn [stmt db] [(stmt :type) db]))
 
-(defmethod compile-sql [::Select :default]
+(defmethod compile-sql [::Select ::AnyDB]
   [stmt _]
   (let [{:keys [columns tables predicates col-aliases table-aliases]} stmt
         cols  (str-cat ","
@@ -124,7 +125,7 @@
                        (list "WHERE" (infixed predicates))))]
     (str-cat " " stmnt)))
 
-(defmethod compile-sql [::OrderedSelect :default]
+(defmethod compile-sql [::OrderedSelect ::AnyDB]
   [stmt db]
   (let [{:keys [query order columns]} stmt]
     (str-cat " " [(compile-sql query db)
@@ -134,25 +135,25 @@
                     :ascending  "ASC"
                     :descending "DESC")])))
 
-(defmethod compile-sql [::GroupedSelect :default]
+(defmethod compile-sql [::GroupedSelect ::AnyDB]
   [stmt db]
   (let [{:keys [query columns]} stmt]
     (str-cat " " [(compile-sql query db)
                   "GROUP BY"
                   (str-cat "," (map ->string columns))])))
 
-(defmethod compile-sql [::HavingSelect :default]
+(defmethod compile-sql [::HavingSelect ::AnyDB]
   [stmt db]
   (let [{:keys [query predicates]} stmt]
     (str-cat " " [(compile-sql query db)
                   "HAVING"
                   (compile-function predicates)])))
 
-(defmethod compile-sql [::DistinctSelect :default]
+(defmethod compile-sql [::DistinctSelect ::AnyDB]
   [stmt db]
   (apply str "SELECT DISTINCT" (drop 6 (-> stmt :query (compile-sql db)))))
 
-(defmethod compile-sql [::Union :default]
+(defmethod compile-sql [::Union ::AnyDB]
   [stmt db]
   (let [{:keys [queries all]} stmt]
     (str "(" (str-cat " " (interpose (if all
@@ -161,21 +162,21 @@
                                      (map #(compile-sql % db) queries)))
          ")")))
 
-(defmethod compile-sql [::Intersect :default]
+(defmethod compile-sql [::Intersect ::AnyDB]
   [stmt db]
   (let [{:keys [queries]} stmt]
     (str "(" (str-cat " " (interpose ") INTERSECT ("
                                      (map #(compile-sql % db) queries)))
          ")")))
 
-(defmethod compile-sql [::Difference :default]
+(defmethod compile-sql [::Difference ::AnyDB]
   [stmt db]
   (let [{:keys [queries]} stmt]
     (str "(" (str-cat " " (interpose ") MINUS ("
                                      (map #(compile-sql % db) queries)))
          ")")))
 
-(defmethod compile-sql [::Insert :default]
+(defmethod compile-sql [::Insert ::AnyDB]
   [stmt _]
   (let [{:keys [table columns]} stmt]
     (str-cat " " ["INSERT INTO" table "("
@@ -184,7 +185,7 @@
                   (str-cat "," (take (count columns) (repeat "?")))
                   ")"])))
 
-(defmethod compile-sql [::Update :default]
+(defmethod compile-sql [::Update ::AnyDB]
   [stmt _]
   (let [{:keys [table columns predicates]} stmt]
     (str-cat " " ["UPDATE" table
@@ -194,7 +195,7 @@
                                              columns))
                   "WHERE"  (infixed predicates)])))
 
-(defmethod compile-sql [::Delete :default]
+(defmethod compile-sql [::Delete ::AnyDB]
   [stmt _]
   (let [{:keys [table predicates]} stmt]
     (str-cat " " ["DELETE FROM" table
@@ -206,11 +207,11 @@
   compile-sql-alter
   (fn [stmt db] [(stmt :subtype) db]))
 
-(defmethod compile-sql [::AlterTable :default]
+(defmethod compile-sql [::AlterTable ::AnyDB]
   [stmt db]
   (compile-sql-alter stmt db))
 
-(defmethod compile-sql-alter [::Add :default]
+(defmethod compile-sql-alter [::Add ::AnyDB]
   [stmt _]
   (let [{:keys [table action options keycoll]} stmt]
     (str-cat " " ["ALTER TABLE" table action
@@ -219,40 +220,40 @@
                     (str "(" keycoll ")" )
                     (->comma-sep keycoll))])))
 
-(defmethod compile-sql-alter [::Change :default]
+(defmethod compile-sql-alter [::Change ::AnyDB]
   [stmt _]
   (let [{:keys [table action options keycoll]} stmt]
     (str-cat " " ["ALTER TABLE" table action
                   (str-cat " " options) keycoll])))
 
-(defmethod compile-sql-alter [::Modify :default]
+(defmethod compile-sql-alter [::Modify ::AnyDB]
   [stmt _]
   (let [{:keys [table column new-type]} stmt]
     (str-cat " " ["ALTER TABLE" table "MODIFY" column new-type])))
 
-(defmethod compile-sql-alter [::DropPrimary :default]
+(defmethod compile-sql-alter [::DropPrimary ::AnyDB]
   [stmt _]
   (let [{:keys [table]} stmt]
     (str "ALTER TABLE " table " DROP PRIMARY KEY")))
 
-(defmethod compile-sql-alter [::Drop :default]
+(defmethod compile-sql-alter [::Drop ::AnyDB]
   [stmt _]
   (let [{:keys [table target target-type]} stmt]
     (str-cat " " ["ALTER TABLE" table "DROP"
                   (case-str #(.toUpperCase (str %)) target-type)
                   (->comma-sep target)])))
 
-(defmethod compile-sql [::CreateTable :default]
+(defmethod compile-sql [::CreateTable ::AnyDB]
   [stmt _]
   (let [{:keys [table columns]} stmt]
     (let [cols (str-cat "," (map (fn [[col type]]
                                    (str (->string col) " " type))
-                                 columns))]
+                                 (partition 2 columns)))]
       (str-cat " " ["CREATE TABLE"
                     table
                     "(" cols ")"]))))
 
-(defmethod compile-sql [::DropTable :default]
+(defmethod compile-sql [::DropTable ::AnyDB]
   [stmt _]
   (let [{:keys [table if-exists]} stmt]
     (str-cat " " ["DROP TABLE"
@@ -266,7 +267,7 @@
   "Return a prepared statement for the given SQL statement in the
   context of the given connection."
   [sql-stmt conn]
-  (doto (.prepareStatement conn (compile-sql sql-stmt nil))
+  (doto (.prepareStatement conn (compile-sql sql-stmt ::AnyDB))
     (set-env (sql-stmt :env))))
 
 (defn result-seq
