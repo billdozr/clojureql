@@ -538,12 +538,12 @@
     (if (empty? options)
       create-ast
       (let [column-vec  (apply array-map column-vec)
-            alterations [(when (:primary options)
-                          (alter-table ~table add primary key ~(:primary options)))
-                         (when (:not-null options)
+            alterations [(when (:not-null options)
                            (let [not-null      (:not-null options)
                                  not-null-type (not-null column-vec)]
                              (alter-table ~table change ~not-null ~not-null ~not-null-type NOT NULL)))
+                         (when (:primary options)
+                           (alter-table ~table add primary key ~(:primary options)))
                          (when (:auto-inc options)
                            (let [auto-inc      (:auto-inc options)
                                  auto-inc-type ((:auto-inc options) column-vec)]
