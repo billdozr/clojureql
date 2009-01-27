@@ -95,10 +95,9 @@
         (str function "(" (str-cat "," (cons (->string col) args)) ")")))
     col-spec))
 
-(defmulti
-  #^{:arglists '([stmt db])
-     :doc "Compile the given SQL statement for the given database."}
-  compile-sql
+(defmulti compile-sql
+  "Compile the given SQL statement for the given database."
+  {:arglists '([stmt db])}
   (fn [stmt db] [(stmt :type) db]))
 
 (defmethod compile-sql [::Select ::AnyDB]
@@ -201,10 +200,9 @@
     (str-cat " " ["DELETE FROM" table
                   "WHERE"       (infixed predicates)])))
 
-(defmulti
-  #^{:arglists '([stmt db])
-     :doc "Sub method to compile ALTER statements."}
-  compile-sql-alter
+(defmulti compile-sql-alter
+  "Sub method to compile ALTER statements."
+  {:arglists '([stmt db])}
   (fn [stmt db] [(stmt :subtype) db]))
 
 (defmethod compile-sql [::AlterTable ::AnyDB]
@@ -326,14 +324,12 @@
   [conn & body]
   `(in-transaction* ~conn (fn [] ~@body)))
 
-(defmulti
-  #^{:arglists '([sql-stmt conn])
-     :doc
+(defmulti execute-sql
   "Execute the given SQL statement in the context of the given connection
-  as obtained by with-connection."}
-  execute-sql
+  as obtained by with-connection."
+  {:arglists '([sql-stmt conn])}
   (fn [sql-stmt conn] (sql-stmt :type))
-  ::Execute)
+  :default ::Execute)
 
 (defmethod execute-sql ::Execute
   [sql-stmt conn]
