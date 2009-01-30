@@ -362,15 +362,22 @@
 
 ;; INTERFACE ================================================
 
+(defn with-connection*
+  "Open the given database connection and calls thunk with the connection.
+  Takes care that the connection is closed after thunk returns."
+  [conn-info thunk]
+  (io! "Database interaction cannot happen in a transaction"
+       (with-open [conn (java.sql.DriverManager/getConnection
+                          (:jdbc-url conn-info)
+                          (:username conn-info)
+                          (:password conn-info))]
+         (thunk conn))))
+
 (defmacro with-connection
+  "Open the database described by the given connection-info and bind
+  it to connection. Then execute body."
   [[connection connection-info] & body]
-  `(io! "Database interaction cannot happen in a transaction"
-     (let [conn-info# ~connection-info]
-       (with-open [~connection (java.sql.DriverManager/getConnection
-                                 (:jdbc-url conn-info#)
-                                 (:username conn-info#)
-                                 (:password conn-info#))]
-         ~@body))))
+  `(with-connection* ~connection-info (fn [~connection] ~@body)))
 
 (defn run*
   " Driver for run - Dont call directly "
