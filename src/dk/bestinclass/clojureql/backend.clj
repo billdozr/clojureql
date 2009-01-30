@@ -420,12 +420,12 @@
   (doseq [row (:statements ast)]
     (println (:sql row))))
 
-(defmacro print-rows
+(defn print-rows
+  "Print all rows in the query."
   [con query]
-  `(run [~con results#]
-        ~query
-        (doseq [row# results#]
-          (println row#))))
+  (run [con results] query
+    (doseq [row results]
+      (println row))))
 
 
 
