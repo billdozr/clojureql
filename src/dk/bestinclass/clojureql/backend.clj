@@ -305,14 +305,19 @@
 (defn in-transaction*
   "Execute thunk wrapped into a savepoint transaction."
   [conn thunk]
-  (let [savepoint (.setSavepoint conn)]
-     (try
-       (let [result (thunk)]
-         (.releaseSavepoint conn savepoint)
-         result)
-       (catch Exception e
-         (.rollback conn savepoint)
-         (throw e)))))
+  (let [auto-commit-state (.getAutoCommit conn)]
+    (try
+      (.setAutoCommit conn false)
+      (let [savepoint (.setSavepoint conn)]
+        (try
+          (let [result (thunk)]
+            (.releaseSavepoint conn savepoint)
+            result)
+          (catch Exception e
+            (.rollback conn savepoint)
+            (throw e))))
+      (finally
+        (.setAutoCommit conn auto-commit-state)))))
 
 (defmacro in-transaction
   "Execute body wrapped into a savepoint transaction."
@@ -355,7 +360,8 @@
 
 (defmethod execute-sql ::Batch
   [sql-stmt conn]
-  (doall (map #(execute-sql % conn) (sql-stmt :statements))))
+  (in-transaction conn
+    (doall (map #(execute-sql % conn) (sql-stmt :statements)))))
 
 ;; INTERFACE ================================================
 
