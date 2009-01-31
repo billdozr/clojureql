@@ -302,11 +302,6 @@
 (derive ::Insert         ::ExecuteUpdate)
 (derive ::Delete         ::ExecuteUpdate)
 
-(defn with-type
-  "Bless the given statement with the given type."
-  [stmt type]
-  (assoc stmt :type type))
-
 (defn in-transaction*
   "Execute thunk wrapped into a savepoint transaction."
   [conn thunk]
@@ -331,25 +326,27 @@
   (fn [sql-stmt conn] (sql-stmt :type))
   :default ::Execute)
 
-(defmethod execute-sql ::Execute
+(defn execute-sql*
   [sql-stmt conn]
   (let [prepd-stmt (prepare-statement sql-stmt conn)]
     (.execute prepd-stmt)
     prepd-stmt))
 
+(defmethod execute-sql ::Execute
+  [sql-stmt conn]
+  (execute-sql* sql-stmt conn))
+
 (defmethod execute-sql ::ExecuteQuery
   [sql-stmt conn]
   (-> sql-stmt
-    (with-type ::Execute)
-    (execute-sql conn)
+    (execute-sql* conn)
     .getResultSet
     result-seq))
 
 (defmethod execute-sql ::ExecuteUpdate
   [sql-stmt conn]
   (-> sql-stmt
-    (with-type ::Execute)
-    (execute-sql conn)
+    (execute-sql* conn)
     .getUpdateCount))
 
 (defmethod execute-sql ::LetQuery
