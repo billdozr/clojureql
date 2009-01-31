@@ -525,6 +525,8 @@
   [table & options]
   `(alter-table* ~@(map quasiquote* (list* table options))))
 
+(declare batch-statements)
+
 (defn create-table*
   "Driver function for create-table macro. Don't use directly."
   [table column-vec & options]
@@ -549,9 +551,7 @@
                                  auto-inc-type ((:auto-inc options) column-vec)]
                              (alter-table ~table change ~auto-inc
                                           ~auto-inc ~auto-inc-type  AUTO_INCREMENT)))]]
-        (struct-map sql-batch-statement
-          :type         ::Batch
-          :statements   (remove nil? (cons create-ast alterations)))))))
+        (apply batch-statements create-ast (remove nil? alterations))))))
 
 (defmacro create-table
   "Create a table of the given name and the given columns.
@@ -575,3 +575,11 @@
   "Drop the given table. Optionally :if-exists might be specified."
   [table & if-exists]
   `(drop-table* ~@(map quasiquote* (cons table if-exists))))
+
+(defn batch-statements
+  "Execute the given statements in a batch wrapped in a dedicated
+  transaction."
+  [& statements]
+  (struct-map sql-batch-statement
+              :type       ::Batch
+              :statements statements))
