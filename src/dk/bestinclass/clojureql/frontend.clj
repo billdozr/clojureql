@@ -172,7 +172,8 @@
   (or (keyword? thing)
       (number? thing)
       (instance? Character thing)
-      (string? thing)))
+      (string? thing)
+      (nil? thing)))
 
 (defn- flatten-map
   "Flatten the keys and values of a map into a list."
@@ -245,9 +246,10 @@
                                       [[] env]
                                       (rest form))]
                                 [(vec (cons function rst)) env])
-        (predicate? function) (if (self-eval? value)
-                                [[function col "?"] (conj env value)]
-                                [[function col value] env])
+        (predicate? function) (cond
+                                (nil? value)       [[function col "NULL"] env]
+                                (self-eval? value) [[function col "?"] (conj env value)]
+                                :else              [[function col value] env])
         :else (throw (Exception.
                        (str "Unsupported predicate form: " function)))))))
 
