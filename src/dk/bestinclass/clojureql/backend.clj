@@ -102,13 +102,13 @@
 
 (defmethod compile-sql [::Select ::AnyDB]
   [stmt _]
-  (let [{:keys [columns tables predicates col-aliases table-aliases]} stmt
+  (let [{:keys [columns tables predicates column-aliases table-aliases]} stmt
         cols  (str-cat ","
                       (map (fn [spec]
                              (let [col (column-from-spec spec)]
                                (-> spec
                                  compile-function
-                                 (compile-alias col col-aliases)
+                                 (compile-alias col column-aliases)
                                  ->string)))
                            columns))
         tabls (str-cat ","
