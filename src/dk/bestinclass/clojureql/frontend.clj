@@ -534,6 +534,22 @@
   [table & options]
   `(alter-table* ~@(map quasiquote* (list* table options))))
 
+;;;==== EXPERIMENTAL SUBSTITUTIONS FOR ALTER
+
+(defmacro set-primary
+  [table id]
+  `(alter-table ~table ~'add ~'primary ~'key ~id))
+
+(defmacro set-notnull
+  [table fields]
+  (let [ [field type-of-field] fields ]
+  `(alter-table ~table ~'change ~field ~field ~type-of-field ~'NOT ~'NULL)))
+
+
+;;;==== EXPERIMENTAL SUBSTITUTIONS FOR ALTER
+
+
+
 (declare batch-statements)
 
 (defn create-table*

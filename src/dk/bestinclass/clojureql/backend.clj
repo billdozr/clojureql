@@ -205,11 +205,11 @@
   {:arglists '([stmt db])}
   (fn [stmt db] [(stmt :subtype) db]))
 
-(defmethod compile-sql [::AlterTable ::AnyDB]
+(defmethod compile-sql [::AlterTable ::Generic]
   [stmt db]
   (compile-sql-alter stmt db))
 
-(defmethod compile-sql-alter [::Add ::AnyDB]
+(defmethod compile-sql-alter [::Add ::Generic]
   [stmt _]
   (let [{:keys [table action options keycoll]} stmt]
     (str-cat " " ["ALTER TABLE" table action
@@ -218,30 +218,30 @@
                     (str "(" keycoll ")" )
                     (->comma-sep keycoll))])))
 
-(defmethod compile-sql-alter [::Change ::AnyDB]
+(defmethod compile-sql-alter [::Change ::Generic]
   [stmt _]
   (let [{:keys [table action options keycoll]} stmt]
     (str-cat " " ["ALTER TABLE" table action
                   (str-cat " " options) keycoll])))
 
-(defmethod compile-sql-alter [::Modify ::AnyDB]
+(defmethod compile-sql-alter [::Modify ::Generic]
   [stmt _]
   (let [{:keys [table column new-type]} stmt]
     (str-cat " " ["ALTER TABLE" table "MODIFY" column new-type])))
 
-(defmethod compile-sql-alter [::DropPrimary ::AnyDB]
+(defmethod compile-sql-alter [::DropPrimary ::Generic]
   [stmt _]
   (let [{:keys [table]} stmt]
     (str "ALTER TABLE " table " DROP PRIMARY KEY")))
 
-(defmethod compile-sql-alter [::Drop ::AnyDB]
+(defmethod compile-sql-alter [::Drop ::Generic]
   [stmt _]
   (let [{:keys [table target target-type]} stmt]
     (str-cat " " ["ALTER TABLE" table "DROP"
                   (case-str #(.toUpperCase (str %)) target-type)
                   (->comma-sep target)])))
 
-(defmethod compile-sql [::CreateTable ::AnyDB]
+(defmethod compile-sql [::CreateTable ::Generic]
   [stmt _]
   (let [{:keys [table columns]} stmt]
     (let [cols (str-cat "," (map (fn [[col type]]
@@ -251,7 +251,7 @@
                     table
                     "(" cols ")"]))))
 
-(defmethod compile-sql [::DropTable ::AnyDB]
+(defmethod compile-sql [::DropTable ::Generic]
   [stmt _]
   (let [{:keys [table if-exists]} stmt]
     (str-cat " " ["DROP TABLE"
@@ -265,7 +265,7 @@
   "Return a prepared statement for the given SQL statement in the
   context of the given connection."
   [sql-stmt conn]
-  (doto (.prepareStatement conn (compile-sql sql-stmt ::AnyDB))
+  (doto (.prepareStatement conn (compile-sql sql-stmt ::Generic))
     (set-env (sql-stmt :env))))
 
 (defn result-seq
@@ -333,7 +333,7 @@
 
 (defn execute-sql*
   [sql-stmt conn]
-  (let [prepd-stmt (prepare-statement sql-stmt conn)]
+  (let [prepd-stmt (prepare-statement (.nativeSQL sql-stmt) conn)]
     (.execute prepd-stmt)
     prepd-stmt))
 
@@ -343,7 +343,7 @@
 
 (defmethod execute-sql ::ExecuteQuery
   [sql-stmt conn]
-  (-> sql-stmt
+  (->  sql-stmt
     (execute-sql* conn)
     .getResultSet
     result-seq))
