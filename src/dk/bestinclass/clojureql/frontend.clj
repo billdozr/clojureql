@@ -545,6 +545,13 @@
   (let [ [field type-of-field] fields ]
   `(alter-table ~table ~'change ~field ~field ~type-of-field ~'NOT ~'NULL)))
 
+(defmacro drop-primary
+  [table]
+  `(alter-table ~table ~'drop ~'primary ~'key))
+
+(defmacro drop-table
+  [table]
+  `(alter-table ~table ~'drop))
 
 ;;;==== EXPERIMENTAL SUBSTITUTIONS FOR ALTER
 
