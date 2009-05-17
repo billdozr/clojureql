@@ -229,12 +229,6 @@
              target
              (str (first wrapper) (str-cat ", "  target) (second wrapper)))))
 
-(defn batch-statement
-  [& options]
-  (struct-map sql-batch-statement
-    :type       ::Batch
-    :statements options))
-
 ;; COMPILER ================================================
 
 
@@ -584,7 +578,7 @@
                              (alter-table ~table change ~auto-inc
                                           ~auto-inc ~auto-inc-type  AUTO_INCREMENT)))]]
 ;        (apply batch-statements create-ast (remove nil? alterations))))))
-        (apply batch-statement (remove nil? (cons create-ast alterations)))))))
+        (apply batch-statements (remove nil? (cons create-ast alterations)))))))
 
 
 
