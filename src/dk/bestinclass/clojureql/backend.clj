@@ -268,19 +268,6 @@
   (doto (.prepareStatement conn (compile-sql sql-stmt ::Generic))
     (set-env (sql-stmt :env))))
 
-; Unfortunately, multifns don't support custom hierarchies.
-(derive ::Select         ::ExecuteQuery)
-(derive ::OrderedSelect  ::Select)
-(derive ::GroupedSelect  ::Select)
-(derive ::DistinctSelect ::Select)
-(derive ::HavingSelect   ::Select)
-(derive ::Union          ::ExecuteQuery)
-(derive ::Intersect      ::ExecuteQuery)
-(derive ::Difference     ::ExecuteQuery)
-(derive ::Update         ::ExecuteUpdate)
-(derive ::Insert         ::ExecuteUpdate)
-(derive ::Delete         ::ExecuteUpdate)
-
 (defn in-transaction*
   "Execute thunk wrapped into a savepoint transaction."
   [conn thunk]
@@ -303,12 +290,28 @@
   [conn & body]
   `(in-transaction* ~conn (fn [] ~@body)))
 
+(def
+  execute-sql-hierarchy
+  (atom (-> (make-hierarchy)
+          (derive ::Select         ::ExecuteQuery)
+          (derive ::OrderedSelect  ::Select)
+          (derive ::GroupedSelect  ::Select)
+          (derive ::DistinctSelect ::Select)
+          (derive ::HavingSelect   ::Select)
+          (derive ::Union          ::ExecuteQuery)
+          (derive ::Intersect      ::ExecuteQuery)
+          (derive ::Difference     ::ExecuteQuery)
+          (derive ::Update         ::ExecuteUpdate)
+          (derive ::Insert         ::ExecuteUpdate)
+          (derive ::Delete         ::ExecuteUpdate))))
+
 (defmulti execute-sql
   "Execute the given SQL statement in the context of the given connection
   as obtained by with-connection."
   {:arglists '([sql-stmt conn])}
   (fn [sql-stmt conn] (sql-stmt :type))
-  :default ::Execute)
+  :default  ::Execute
+  :hierarchy execute-sql-hierarchy)
 
 (defn execute-sql*
   [sql-stmt conn]
