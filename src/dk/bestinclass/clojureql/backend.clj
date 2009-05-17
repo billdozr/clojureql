@@ -313,27 +313,23 @@
   :default  ::Execute
   :hierarchy execute-sql-hierarchy)
 
-(defn execute-sql*
+(defmethod execute-sql ::Execute
   [sql-stmt conn]
   (let [prepd-stmt (prepare-statement (.nativeSQL sql-stmt) conn)]
     (.execute prepd-stmt)
     prepd-stmt))
 
-(defmethod execute-sql ::Execute
-  [sql-stmt conn]
-  (execute-sql* sql-stmt conn))
-
 (defmethod execute-sql ::ExecuteQuery
   [sql-stmt conn]
   (->  sql-stmt
-    (execute-sql* conn)
+    ((get-method execute-sql ::Execute))
     .getResultSet
     resultset-seq))
 
 (defmethod execute-sql ::ExecuteUpdate
   [sql-stmt conn]
   (-> sql-stmt
-    (execute-sql* conn)
+    ((get-method execute-sql ::Execute))
     .getUpdateCount))
 
 (defmethod execute-sql ::LetQuery
