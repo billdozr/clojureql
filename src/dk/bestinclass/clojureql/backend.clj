@@ -268,27 +268,6 @@
   (doto (.prepareStatement conn (compile-sql sql-stmt ::Generic))
     (set-env (sql-stmt :env))))
 
-(defn result-seq
-  "This is basically a rip-off of Clojure's resultset-seq, which also
-  closes the result set, when the last row was realized in the seq."
-  [#^java.sql.ResultSet result-set]
-    (let [meta-info  (.getMetaData result-set)
-          idxs       (range 1 (inc (.getColumnCount meta-info)))
-          keys       (map (comp keyword
-                                #(.toLowerCase %)
-                                #(.getColumnName meta-info %))
-                          idxs)
-          row-struct (apply create-struct keys)
-          row-values (fn [] (map (fn [#^Integer i] (.getObject result-set i)) idxs))
-          rows       (fn thisfn []
-                       (if (.next result-set)
-                         (lazy-cons (apply struct row-struct (row-values))
-                                    (thisfn))
-                         (do
-                           (.close result-set)
-                           nil)))]
-      (rows)))
-
 ; Unfortunately, multifns don't support custom hierarchies.
 (derive ::Select         ::ExecuteQuery)
 (derive ::OrderedSelect  ::Select)
@@ -346,7 +325,7 @@
   (->  sql-stmt
     (execute-sql* conn)
     .getResultSet
-    result-seq))
+    resultset-seq))
 
 (defmethod execute-sql ::ExecuteUpdate
   [sql-stmt conn]
