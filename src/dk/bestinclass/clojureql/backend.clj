@@ -315,7 +315,7 @@
 
 (defmethod execute-sql ::Execute
   [sql-stmt conn]
-  (let [prepd-stmt (prepare-statement (.nativeSQL sql-stmt) conn)]
+  (let [prepd-stmt (prepare-statement sql-stmt conn)]
     (.execute prepd-stmt)
     prepd-stmt))
 
