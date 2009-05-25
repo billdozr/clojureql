@@ -52,7 +52,7 @@
   "Load the named JDBC driver. Has to be called once before accessing
   the database."
   [driver]
-  (Class/forName driver)
+  (clojure.lang.RT/classForName driver)
   nil)
 
 ;; SQL COMPILATION ==========================================
