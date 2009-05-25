@@ -100,7 +100,7 @@
   {:arglists '([stmt db])}
   (fn [stmt db] [(stmt :type) db]))
 
-(defmethod compile-sql [::Select ::AnyDB]
+(defmethod compile-sql [::Select ::Generic]
   [stmt _]
   (let [{:keys [columns tables predicates column-aliases table-aliases]} stmt
         cols  (str-cat ","
@@ -124,7 +124,7 @@
                        (list "WHERE" (infixed predicates))))]
     (str-cat " " stmnt)))
 
-(defmethod compile-sql [::OrderedSelect ::AnyDB]
+(defmethod compile-sql [::OrderedSelect ::Generic]
   [stmt db]
   (let [{:keys [query order columns]} stmt]
     (str-cat " " [(compile-sql query db)
@@ -134,25 +134,25 @@
                     :ascending  "ASC"
                     :descending "DESC")])))
 
-(defmethod compile-sql [::GroupedSelect ::AnyDB]
+(defmethod compile-sql [::GroupedSelect ::Generic]
   [stmt db]
   (let [{:keys [query columns]} stmt]
     (str-cat " " [(compile-sql query db)
                   "GROUP BY"
                   (str-cat "," (map ->string columns))])))
 
-(defmethod compile-sql [::HavingSelect ::AnyDB]
+(defmethod compile-sql [::HavingSelect ::Generic]
   [stmt db]
   (let [{:keys [query predicates]} stmt]
     (str-cat " " [(compile-sql query db)
                   "HAVING"
                   (compile-function predicates)])))
 
-(defmethod compile-sql [::DistinctSelect ::AnyDB]
+(defmethod compile-sql [::DistinctSelect ::Generic]
   [stmt db]
   (apply str "SELECT DISTINCT" (drop 6 (-> stmt :query (compile-sql db)))))
 
-(defmethod compile-sql [::Union ::AnyDB]
+(defmethod compile-sql [::Union ::Generic]
   [stmt db]
   (let [{:keys [queries all]} stmt]
     (str "(" (str-cat " " (interpose (if all
@@ -161,21 +161,21 @@
                                      (map #(compile-sql % db) queries)))
          ")")))
 
-(defmethod compile-sql [::Intersect ::AnyDB]
+(defmethod compile-sql [::Intersect ::Generic]
   [stmt db]
   (let [{:keys [queries]} stmt]
     (str "(" (str-cat " " (interpose ") INTERSECT ("
                                      (map #(compile-sql % db) queries)))
          ")")))
 
-(defmethod compile-sql [::Difference ::AnyDB]
+(defmethod compile-sql [::Difference ::Generic]
   [stmt db]
   (let [{:keys [queries]} stmt]
     (str "(" (str-cat " " (interpose ") MINUS ("
                                      (map #(compile-sql % db) queries)))
          ")")))
 
-(defmethod compile-sql [::Insert ::AnyDB]
+(defmethod compile-sql [::Insert ::Generic]
   [stmt _]
   (let [{:keys [table columns]} stmt]
     (str-cat " " ["INSERT INTO" table "("
@@ -184,7 +184,7 @@
                   (str-cat "," (take (count columns) (repeat "?")))
                   ")"])))
 
-(defmethod compile-sql [::Update ::AnyDB]
+(defmethod compile-sql [::Update ::Generic]
   [stmt _]
   (let [{:keys [table columns predicates]} stmt]
     (str-cat " " ["UPDATE" table
@@ -194,7 +194,7 @@
                                              columns))
                   "WHERE"  (infixed predicates)])))
 
-(defmethod compile-sql [::Delete ::AnyDB]
+(defmethod compile-sql [::Delete ::Generic]
   [stmt _]
   (let [{:keys [table predicates]} stmt]
     (str-cat " " ["DELETE FROM" table
