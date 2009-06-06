@@ -4,19 +4,18 @@
         status="integration"/>
 
     <configurations>
-        <conf name="default"/>
         <conf name="source"/>
-        <conf name="build" visibility="private"/>
+        <conf name="compiled"/>
+        <conf name="default" extends="source,compiled"/>
     </configurations>
 
     <publications>
-        <artifact name="${ant.project.name}" type="jar" conf="default"/>
+        <artifact name="${ant.project.name}" type="jar" conf="compiled"/>
         <artifact name="${ant.project.name}-source" type="jar" conf="source"/>
     </publications>
 
     <dependencies>
-        <dependency org="org.clojure" name="clojure-lang" rev="1.0.0"
-            conf="default"/>
+        <dependency org="org.clojure" name="clojure" rev="1.0.0" conf="*->@"/>
     </dependencies>
 
 </ivy-module>
