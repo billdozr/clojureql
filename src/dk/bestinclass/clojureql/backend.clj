@@ -95,10 +95,26 @@
         (str function "(" (str-cat "," (cons (->string col) args)) ")")))
     col-spec))
 
+(def sql-hierarchy
+  (atom (-> (make-hierarchy)
+          (derive java.sql.Connection ::Generic)
+          (derive ::Select         ::ExecuteQuery)
+          (derive ::OrderedSelect  ::Select)
+          (derive ::GroupedSelect  ::Select)
+          (derive ::DistinctSelect ::Select)
+          (derive ::HavingSelect   ::Select)
+          (derive ::Union          ::ExecuteQuery)
+          (derive ::Intersect      ::ExecuteQuery)
+          (derive ::Difference     ::ExecuteQuery)
+          (derive ::Update         ::ExecuteUpdate)
+          (derive ::Insert         ::ExecuteUpdate)
+          (derive ::Delete         ::ExecuteUpdate))))
+
 (defmulti compile-sql
   "Compile the given SQL statement for the given database."
   {:arglists '([stmt db])}
-  (fn [stmt db] [(stmt :type) db]))
+  (fn [stmt db] [(stmt :type) (class db)])
+  :hierarchy sql-hierarchy)
 
 (defmethod compile-sql [::Select ::Generic]
   [stmt _]
@@ -290,28 +306,13 @@
   [conn & body]
   `(in-transaction* ~conn (fn [] ~@body)))
 
-(def
-  execute-sql-hierarchy
-  (atom (-> (make-hierarchy)
-          (derive ::Select         ::ExecuteQuery)
-          (derive ::OrderedSelect  ::Select)
-          (derive ::GroupedSelect  ::Select)
-          (derive ::DistinctSelect ::Select)
-          (derive ::HavingSelect   ::Select)
-          (derive ::Union          ::ExecuteQuery)
-          (derive ::Intersect      ::ExecuteQuery)
-          (derive ::Difference     ::ExecuteQuery)
-          (derive ::Update         ::ExecuteUpdate)
-          (derive ::Insert         ::ExecuteUpdate)
-          (derive ::Delete         ::ExecuteUpdate))))
-
 (defmulti execute-sql
   "Execute the given SQL statement in the context of the given connection
   as obtained by with-connection."
   {:arglists '([sql-stmt conn])}
   (fn [sql-stmt conn] (sql-stmt :type))
   :default  ::Execute
-  :hierarchy execute-sql-hierarchy)
+  :hierarchy sql-hierarchy)
 
 (defmethod execute-sql ::Execute
   [sql-stmt conn]
