@@ -262,6 +262,8 @@
   [stmt _]
   (let [{:keys [table columns options]}          stmt
         {:keys [primary-key non-nulls auto-inc]} options
+        non-nulls   (set (->vector non-nulls))
+        auto-inc    (set (->vector auto-inc))
         columns     (map (fn [[column col-type]]
                            (str column " " col-type
                                 (when (contains? non-nulls column)

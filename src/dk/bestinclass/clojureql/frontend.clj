@@ -558,8 +558,8 @@
   [table columns & options]
   (let [columns (apply array-map (->vector columns))
         options (merge {:primary-key nil
-                        :non-nulls   #{}
-                        :auto-inc    #{}}
+                        :non-nulls   []
+                        :auto-inc    []}
                        (apply hash-map options))]
     (struct-map sql-create-table
                 :type    ::CreateTable
