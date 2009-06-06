@@ -6,6 +6,7 @@
     <configurations>
         <conf name="source"/>
         <conf name="compiled"/>
+        <conf name="derby"/>
         <conf name="default" extends="source,compiled"/>
     </configurations>
 
@@ -15,7 +16,10 @@
     </publications>
 
     <dependencies>
-        <dependency org="org.clojure" name="clojure" rev="1.0.0" conf="*->@"/>
+        <dependency org="org.clojure" name="clojure" rev="1.0.0"
+            conf="source->source;compiled->compiled;default->default"/>
+        <dependency org="org.apache.derby" name="derby" rev="10.4.2.0"
+            conf="derby->default"/>
     </dependencies>
 
 </ivy-module>
