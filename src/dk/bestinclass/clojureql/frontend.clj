@@ -555,32 +555,17 @@
 
 (defn create-table*
   "Driver function for create-table macro. Don't use directly."
-  [table column-vec & options]
-  (let [columns    (->vector column-vec)
-        options    (apply hash-map options)
-        create-ast (struct-map sql-create-table
-                               :type    ::CreateTable
-                               :table   table
-                               :columns columns
-                               :options options)]
-    (if (empty? options)
-      create-ast
-      (let [column-vec  (apply array-map column-vec)
-            alterations [(when (:not-null options)
-                           (let [not-null      (:not-null options)
-                                 not-null-type (not-null column-vec)]
-                             (alter-table ~table change ~not-null ~not-null ~not-null-type NOT NULL)))
-                         (when (:primary options)
-                           (alter-table ~table add primary key ~(:primary options)))
-                         (when (:auto-inc options)
-                           (let [auto-inc      (:auto-inc options)
-                                 auto-inc-type ((:auto-inc options) column-vec)]
-                             (alter-table ~table change ~auto-inc
-                                          ~auto-inc ~auto-inc-type  AUTO_INCREMENT)))]]
-;        (apply batch-statements create-ast (remove nil? alterations))))))
-        (apply batch-statements (remove nil? (cons create-ast alterations)))))))
-
-
+  [table columns & options]
+  (let [columns (apply array-map (->vector columns))
+        options (merge {:primary-key nil
+                        :non-nulls   #{}
+                        :auto-inc    #{}}
+                       (apply hash-map options))]
+    (struct-map sql-create-table
+                :type    ::CreateTable
+                :table   table
+                :columns columns
+                :options options)))
 
 (defmacro create-table
   "Create a table of the given name and the given columns.

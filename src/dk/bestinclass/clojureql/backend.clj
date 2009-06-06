@@ -257,15 +257,23 @@
                   (case-str #(.toUpperCase (str %)) target-type)
                   (->comma-sep target)])))
 
-(defmethod compile-sql [::CreateTable ::Generic]
+(defmethod compile-sql [::CreateTable
+                        org.apache.derby.impl.jdbc.EmbedConnection]
   [stmt _]
-  (let [{:keys [table columns]} stmt]
-    (let [cols (str-cat "," (map (fn [[col type]]
-                                   (str (->string col) " " type))
-                                 (partition 2 columns)))]
-      (str-cat " " ["CREATE TABLE"
-                    table
-                    "(" cols ")"]))))
+  (let [{:keys [table columns options]}          stmt
+        {:keys [primary-key non-nulls auto-inc]} options
+        columns     (map (fn [[column col-type]]
+                           (str column " " col-type
+                                (when (contains? non-nulls column)
+                                  " NOT NULL")))
+                         columns)
+        primary-key (when primary-key
+                      (let [primary-key (->vector primary-key)]
+                        (str "PRIMARY KEY (" (str-cat "," primary-key) ")")))]
+    (str "CREATE TABLE " table " ("
+         (str-cat "," columns)
+         (when primary-key (str "," primary-key))
+         ")")))
 
 (defmethod compile-sql [::DropTable ::Generic]
   [stmt _]
@@ -281,7 +289,7 @@
   "Return a prepared statement for the given SQL statement in the
   context of the given connection."
   [sql-stmt conn]
-  (doto (.prepareStatement conn (compile-sql sql-stmt ::Generic))
+  (doto (.prepareStatement conn (compile-sql sql-stmt conn))
     (set-env (sql-stmt :env))))
 
 (defn in-transaction*
