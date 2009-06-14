@@ -257,6 +257,13 @@
                   (case-str #(.toUpperCase (str %)) target-type)
                   (->comma-sep target)])))
 
+(defmethod compile-sql [::CreateTable ::Generic]
+  [stmt _]
+  (let [{:keys [table columns]} stmt]
+    (str "CREATE TABLE " table " ("
+         (str-cat "," (map #(str (first %1) " " (second %2)) columns))
+         ")")))
+
 (defmethod compile-sql [::CreateTable
                         org.apache.derby.impl.jdbc.EmbedConnection]
   [stmt _]
