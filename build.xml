@@ -73,6 +73,7 @@
             </classpath>
             <sysproperty key="clojure.compile.path" value="${classes.dir}"/>
             <arg value="dk.bestinclass.clojureql"/>
+            <arg value="dk.bestinclass.clojureql.backend.derby"/>
             <arg value="dk.bestinclass.clojureql.demo"/>
         </java>
     </target>

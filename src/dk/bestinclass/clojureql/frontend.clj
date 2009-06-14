@@ -94,7 +94,7 @@
 
 ;; HELPERS =================================================
 
-(defn- ->vector
+(defn ->vector
   "Takes 1 argument and converts it into a vector"
   [thing]
   (cond

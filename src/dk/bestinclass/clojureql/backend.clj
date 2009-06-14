@@ -264,26 +264,6 @@
          (str-cat "," (map #(str (first %1) " " (second %2)) columns))
          ")")))
 
-(defmethod compile-sql [::CreateTable
-                        org.apache.derby.impl.jdbc.EmbedConnection]
-  [stmt _]
-  (let [{:keys [table columns options]}          stmt
-        {:keys [primary-key non-nulls auto-inc]} options
-        non-nulls   (set (->vector non-nulls))
-        auto-inc    (set (->vector auto-inc))
-        columns     (map (fn [[column col-type]]
-                           (str column " " col-type
-                                (when (contains? non-nulls column)
-                                  " NOT NULL")))
-                         columns)
-        primary-key (when primary-key
-                      (let [primary-key (->vector primary-key)]
-                        (str "PRIMARY KEY (" (str-cat "," primary-key) ")")))]
-    (str "CREATE TABLE " table " ("
-         (str-cat "," columns)
-         (when primary-key (str "," primary-key))
-         ")")))
-
 (defmethod compile-sql [::DropTable ::Generic]
   [stmt _]
   (let [{:keys [table if-exists]} stmt]
