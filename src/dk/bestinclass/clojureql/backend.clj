@@ -320,14 +320,14 @@
 (defmethod execute-sql ::ExecuteQuery
   [sql-stmt conn]
   (->  sql-stmt
-    ((get-method execute-sql ::Execute))
+    ((get-method execute-sql ::Execute) conn)
     .getResultSet
     resultset-seq))
 
 (defmethod execute-sql ::ExecuteUpdate
   [sql-stmt conn]
   (-> sql-stmt
-    ((get-method execute-sql ::Execute))
+    ((get-method execute-sql ::Execute) conn)
     .getUpdateCount))
 
 (defmethod execute-sql ::LetQuery
