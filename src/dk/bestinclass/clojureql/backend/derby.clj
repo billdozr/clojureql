@@ -11,26 +11,27 @@
 
 (clojure.core/ns dk.bestinclass.clojureql.backend.derby
   (:require
-     [dk.bestinclass.clojureql :as cql]))
+     [dk.bestinclass.clojureql :as cql]
+     [dk.bestinclass.clojureql.util :as util]))
 
 (defmethod cql/compile-sql
   [::cql/CreateTable org.apache.derby.impl.jdbc.EmbedConnection]
   [stmt _]
   (let [{:keys [table columns options]}          stmt
         {:keys [primary-key non-nulls auto-inc]} options
-        non-nulls   (set (cql/->vector non-nulls))
-        auto-inc    (set (cql/->vector auto-inc))
+        non-nulls   (set (util/->vector non-nulls))
+        auto-inc    (set (util/->vector auto-inc))
         columns     (map (fn [[column col-type]]
                            (str column " " col-type
                                 (when (contains? non-nulls column)
                                   " NOT NULL")))
                          columns)
         primary-key (when primary-key
-                      (let [primary-key (cql/->vector primary-key)]
+                      (let [primary-key (util/->vector primary-key)]
                         (str "PRIMARY KEY ("
-                             (cql/str-cat "," primary-key)
+                             (util/str-cat "," primary-key)
                              ")")))]
     (str "CREATE TABLE " table " ("
-         (cql/str-cat "," columns)
+         (util/str-cat "," columns)
          (when primary-key (str "," primary-key))
          ")")))

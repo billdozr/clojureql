@@ -72,6 +72,7 @@
                 <fileset dir="${lib.dir}" includes="**/*.jar"/>
             </classpath>
             <sysproperty key="clojure.compile.path" value="${classes.dir}"/>
+            <arg value="dk.bestinclass.clojureql.util"/>
             <arg value="dk.bestinclass.clojureql"/>
             <arg value="dk.bestinclass.clojureql.backend.derby"/>
             <arg value="dk.bestinclass.clojureql.demo"/>

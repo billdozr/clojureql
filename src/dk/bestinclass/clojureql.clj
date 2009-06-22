@@ -10,6 +10,8 @@
 ;; this software.
 
 (ns dk.bestinclass.clojureql
+  (:use
+     dk.bestinclass.clojureql.util)
   (:load
      "clojureql/frontend"
      "clojureql/backend"))
