@@ -10,9 +10,25 @@
 ;; this software.
 
 (clojure.core/ns dk.bestinclass.clojureql.backend.derby
+  (:import
+     clojure.lang.RT)
   (:require
      [dk.bestinclass.clojureql :as cql]
      [dk.bestinclass.clojureql.util :as util]))
+
+(defn load-embedded-driver
+  "Load the embedded derby driver."
+  []
+  (let [klass (RT/classForName "org.apache.derby.jdbc.EmbeddedDriver")]
+    (.newInstance klass)
+    nil))
+
+(defn load-client-driver
+  "Load the derby client driver."
+  []
+  (let [klass (RT/classForName "org.apache.derby.jdbc.ClientDriver")]
+    (.newInstance klass)
+    nil))
 
 (defmethod cql/compile-sql
   [::cql/CreateTable org.apache.derby.impl.jdbc.EmbedConnection]
