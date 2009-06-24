@@ -106,7 +106,11 @@
                   (map #(hash-map :our-result (str (:storename %)
                                                    " sold $"
                                                    (:totalsales %) "!"))
-                       result))))
+                       result)))
+
+  ; Cover our tracks.
+  (sql/run *conn-info* (sql/drop-table StoreInformation)))
+
 (comment
   ; Modify existing tables
   (println "ALTER TABLE StoreInformation ADD PRIMARY KEY ( id )")
@@ -116,7 +120,4 @@
   (sql/run *conn-info* (sql/alter-table StoreInformation change Sales YearlySales "int(11)"))
 
   (println "ALTER TABLE StoreInformation MODIFY Sales int(5)")
-  (sql/run *conn-info* (sql/alter-table StoreInformation modify Sales "int(5)"))
-
-  ; Cover our tracks.
-  (sql/run *conn-info* (sql/drop-table StoreInformation)))
+  (sql/run *conn-info* (sql/alter-table StoreInformation modify Sales "int(5)")))
