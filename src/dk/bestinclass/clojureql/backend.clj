@@ -31,7 +31,7 @@
   (when (pos? (count env))
     (loop [env (seq env)
            cnt 1]
-      (when (seq env)
+      (when env
         (let [value (first env)]
           (condp instance? value
             String             (.setString    stmt cnt value)
