@@ -8,29 +8,17 @@
 
 ; Choose your database. Currently MySQL and SQLite are supported
 ; in the examples.
-(def *database-system* :Derby)
+(def *database-system* :MySQL)
 
 ; Adapt the following connection-info to your local database.
 (def *conn-info*
-  (condp = *database-system*
     :MySQL  (sql/make-connection-info "mysql"
-                                      "//localhost/mysql"
-                                      "mysqluser"
-                                      "mysqlpsw")
-    :SQLite (sql/make-connection-info "sqlite"
-                                      "demo.db"
-                                      ""
-                                      "")
-    :Derby  (sql/make-connection-info "derby"
-                                      "derby.demo"
-                                      ""
-                                      "")))
+                                      "//localhost/cql"
+                                      "cql"
+                                      "cql"))
 
 (def *driver*
-  (condp = *database-system*
-    :MySQL  "com.mysql.jdbc.Driver"
-    :SQLite "org.sqlite.JDBC"
-    :Derby  "org.apache.derby.jdbc.EmbeddedDriver"))
+    :MySQL  "com.mysql.jdbc.Driver")
 
 (defn run-and-show
   [query]
@@ -45,33 +33,16 @@
   (sql/load-driver *driver*)
 
   ; Create the table we will use in the demo.
-  (sql/run *conn-info* (condp = *database-system*
-                         :MySQL  (sql/create-table StoreInformation
-                                                   [id "int(11)"
-                                                    StoreName "varchar(100)"
-                                                    Sales "int(11)"
-                                                    Date date]
-                                                   :primary  id
-                                                   :not-null id
-                                                   :auto-inc id)
+  (sql/run *conn-info*
+           (sql/create-table StoreInformation
+                             [id "int(11)"
+                              StoreName "varchar(100)"
+                              Sales "int(11)"
+                              Date date]
+                             :primary  id
+                             :not-null id
+                             :auto-inc id))
 
-                         :SQLite (sql/create-table StoreInformation
-                                                   [id NUMERIC
-                                                    StoreName TEXT
-                                                    Sales NUMERIC
-                                                    Date NUMERIC]
-                                                   :primary  id
-                                                   :not-null id
-                                                   :auto-inc id)
-
-                         :Derby  (sql/create-table StoreInformation
-                                                   [id int
-                                                    StoreName "varchar(100)"
-                                                    Sales int
-                                                    Date date]
-                                                   :primary  id
-                                                   :not-null id
-                                                   :auto-inc id)))
 
   ; Populate the table with data.
   (let [make-stmt (fn [[store sale date]]
@@ -162,16 +133,6 @@
                                                    " sold $"
                                                    (:totalsales %) "!"))
                        result)))
-
-  ; Modify existing tables
-  (println "ALTER TABLE StoreInformation ADD PRIMARY KEY ( id )")
-  (sql/run *conn-info* (sql/alter-table StoreInformation add primary key id))
-
-  (println "ALTER TABLE StoreInformation CHANGE Sales YearlySales int(11)")
-  (sql/run *conn-info* (sql/alter-table StoreInformation change Sales YearlySales "int(11)"))
-
-  (println "ALTER TABLE StoreInformation MODIFY Sales int(5)")
-  (sql/run *conn-info* (sql/alter-table StoreInformation modify Sales "int(5)"))
 
   ; Cover our tracks.
   (sql/run *conn-info* (sql/drop-table StoreInformation)))

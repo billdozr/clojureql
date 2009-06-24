@@ -1,4 +1,4 @@
-;; Copyright (c) 2008,2009 Lau B. Jensen <lau.jensen {at} bestinclass.dk
+;; (c) 2008,2009 Lau B. Jensen <lau.jensen {at} bestinclass.dk
 ;;                         Meikel Brandmeyer <mb {at} kotka.de>
 ;; All rights reserved.
 ;;
@@ -31,7 +31,7 @@
   (when (pos? (count env))
     (loop [env (seq env)
            cnt 1]
-      (when env
+      (when (seq env)
         (let [value (first env)]
           (condp instance? value
             String             (.setString    stmt cnt value)
@@ -261,7 +261,7 @@
   [stmt _]
   (let [{:keys [table columns]} stmt]
     (str "CREATE TABLE " table " ("
-         (str-cat "," (map #(str (first %1) " " (second %2)) columns))
+         (str-cat "," (map #(str (first %) " " (second %)) columns))
          ")")))
 
 (defmethod compile-sql [::DropTable ::Generic]
