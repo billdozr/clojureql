@@ -29,7 +29,7 @@
 (defn set-env
   [stmt env]
   (when (pos? (count env))
-    (loop [env env
+    (loop [env (seq env)
            cnt 1]
       (when env
         (let [value (first env)]
@@ -46,7 +46,7 @@
                                  (.setDate    stmt cnt value))
             java.sql.Time      (.setTime      stmt cnt value)
             java.sql.Timestamp (.setTimestamp stmt cnt value))
-          (recur (rest env) (inc cnt)))))))
+          (recur (next env) (inc cnt)))))))
 
 (defn load-driver
   "Load the named JDBC driver. Has to be called once before accessing
