@@ -1,4 +1,4 @@
-;; Copyright (c) 2008,2009 Lau B. Jensen <lau.jensen {at} bestinclass.dk
+;; (c) 2008,2009 Lau B. Jensen <lau.jensen {at} bestinclass.dk
 ;;                         Meikel Brandmeyer <mb {at} kotka.de>
 ;; All rights reserved.
 ;;
@@ -31,7 +31,7 @@
   (when (pos? (count env))
     (loop [env env
            cnt 1]
-      (when env
+      (when (seq env)
         (let [value (first env)]
           (condp instance? value
             String             (.setString    stmt cnt value)
@@ -46,7 +46,7 @@
                                  (.setDate    stmt cnt value))
             java.sql.Time      (.setTime      stmt cnt value)
             java.sql.Timestamp (.setTimestamp stmt cnt value))
-          (recur (rest env) (inc cnt)))))))
+          (recur (next env) (inc cnt)))))))
 
 (defn load-driver
   "Load the named JDBC driver. Has to be called once before accessing
@@ -88,7 +88,7 @@
 (defn compile-function
   [col-spec]
   "Compile a function specification into a string."
-  (if (or (list? col-spec) (vector? col-spec))
+  (if (or (seq? col-spec) (list? col-spec) (vector? col-spec))
     (let [[function col & args] col-spec]
       (if (= (sql-function-type function) :infix)
         (infixed col-spec)
@@ -261,7 +261,7 @@
   [stmt _]
   (let [{:keys [table columns]} stmt]
     (str "CREATE TABLE " table " ("
-         (str-cat "," (map #(str (first %1) " " (second %2)) columns))
+         (str-cat "," (map #(str (first %) " " (second %)) columns))
          ")")))
 
 (defmethod compile-sql [::DropTable ::Generic]

@@ -442,7 +442,7 @@
   (let [if-exists (= (first if-exists) :if-exists)]
     (struct-map sql-drop-table
                 :type      ::DropTable
-                :tabel     table
+                :table     table
                 :if-exists if-exists)))
 
 (defmacro drop-table
