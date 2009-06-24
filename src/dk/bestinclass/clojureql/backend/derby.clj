@@ -40,7 +40,9 @@
         columns     (map (fn [[column col-type]]
                            (str column " " col-type
                                 (when (contains? non-nulls column)
-                                  " NOT NULL")))
+                                  " NOT NULL")
+                                (when (contains? auto-inc column)
+                                  " GENERATED ALWAYS AS IDENTITY")))
                          columns)
         primary-key (when primary-key
                       (let [primary-key (util/->vector primary-key)]
