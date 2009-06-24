@@ -88,7 +88,7 @@
 (defn compile-function
   [col-spec]
   "Compile a function specification into a string."
-  (if (or (list? col-spec) (vector? col-spec))
+  (if (or (seq? col-spec) (list? col-spec) (vector? col-spec))
     (let [[function col & args] col-spec]
       (if (= (sql-function-type function) :infix)
         (infixed col-spec)
