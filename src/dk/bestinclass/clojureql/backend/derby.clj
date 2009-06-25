@@ -31,6 +31,30 @@
     nil))
 
 (defmethod cql/compile-sql
+  [::cql/Join org.apache.derby.impl.jdbc.EmbedConnection]
+  [stmt db]
+  (if (= (:join stmt) :full)
+    ; Special case: Derby does not support full JOIN. Emulate it.
+    (let [query (:query stmt)
+          {:keys [columns tables predicates column-aliases table-aliases]} query
+          cols  (cql/compile-column-spec columns column-aliases)
+          left  (cql/compile-table-spec [(first tables)] table-aliases)
+          right (cql/compile-table-spec [(second tables)] table-aliases)
+          stmnt (list "SELECT" cols
+                      "FROM"   left
+                      "LEFT JOIN" right
+                      "ON"     (cql/infixed predicates)
+                      "UNION ALL"
+                      "SELECT" cols
+                      "FROM"   right
+                      "LEFT JOIN" left
+                      "ON"     (cql/infixed predicates)
+                      "WHERE"  (second predicates) "IS NULL")]
+      (util/str-cat " " stmnt))
+    ((get-method cql/compile-sql [::cql/Join ::cql/Generic]) stmt db)))
+
+
+(defmethod cql/compile-sql
   [::cql/CreateTable org.apache.derby.impl.jdbc.EmbedConnection]
   [stmt _]
   (let [{:keys [table columns options]}          stmt
