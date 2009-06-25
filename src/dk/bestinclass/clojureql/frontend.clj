@@ -18,6 +18,9 @@
 (defstruct sql-query
   :type :columns :tables :predicates :column-aliases :table-aliases :env)
 
+(defstruct sql-join
+  :type :query :join :env)
+
 (defstruct sql-ordered-query
   :type :query :order :columns :env)
 
@@ -77,6 +80,7 @@
   "Hierarchy for the SELECT statements."}
   select-hierarchy
   (-> (make-hierarchy)
+    (derive ::Join           ::Select)
     (derive ::OrderedSelect  ::Select)
     (derive ::GroupedSelect  ::Select)
     (derive ::DistinctSelect ::Select)))
@@ -146,6 +150,15 @@
    `(query ~col-spec ~table-spec nil))
   ([col-spec table-spec pred-spec]
    `(query* ~@(map quasiquote* [col-spec table-spec pred-spec]))))
+
+(defn join
+  "Turn a query into JOIN."
+  [join-type kwery]
+  (struct-map sql-join
+              :type  ::Join
+              :query kwery
+              :join  join-type
+              :env   (kwery :env)))
 
 (defn order-by*
   "Driver for the order-by macro. Don't call directly."

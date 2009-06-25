@@ -99,6 +99,7 @@
   (atom (-> (make-hierarchy)
           (derive java.sql.Connection ::Generic)
           (derive ::Select         ::ExecuteQuery)
+          (derive ::Join           ::Select)
           (derive ::OrderedSelect  ::Select)
           (derive ::GroupedSelect  ::Select)
           (derive ::DistinctSelect ::Select)
@@ -146,6 +147,21 @@
                      "FROM"   tabls
                      (when predicates
                        (list "WHERE" (infixed predicates))))]
+    (str-cat " " stmnt)))
+
+(defmethod compile-sql [::Join ::Generic]
+  [stmt _]
+  (let [join-types {:inner "INNER" :left  "LEFT" :right "RIGHT" :full  "FULL"}
+        {:keys [query join]} stmt
+        {:keys [columns tables predicates column-aliases table-aliases]} query
+        cols  (compile-column-spec columns column-aliases)
+        left  (compile-table-spec [(first tables)] table-aliases)
+        right (compile-table-spec [(second tables)] table-aliases)
+        stmnt (list "SELECT" cols
+                    "FROM"   left
+                    (join-types join)
+                    "JOIN"   right
+                    "ON"     (infixed predicates))]
     (str-cat " " stmnt)))
 
 (defmethod compile-sql [::OrderedSelect ::Generic]
