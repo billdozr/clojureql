@@ -18,6 +18,10 @@
                                          :not-null id
                                          :auto-inc id))
 
+  (sql/run *conn-info* (sql/create-table TownInformation
+                                         [TownName "varchar(100)"
+                                          Inhabitants int]))
+
   ; Populate the table with data.
   (let [make-stmt (fn [[store sale date]]
                     (sql/insert-into StoreInformation
@@ -31,6 +35,18 @@
                    ["Boston"         700 (java.util.Date. 1999 1 9)]]]
     (doseq [record data]
       (sql/run *conn-info* (make-stmt record))))
+
+  (sql/with-connection [conn *conn-info*]
+    (let [make-stmt (fn [[town inhabitants]]
+                      (sql/insert-into TownInformation
+                                       TownName    ~town
+                                       Inhabitants ~inhabitants))
+          data      [["Los Angeles"   2500000]
+                     ["San Francisco" 1000000]
+                     ["Boston"         500000]
+                     ["Frankfurt"      900000]]]
+      (doseq [record data]
+        (sql/execute-sql (make-stmt record) conn))))
 
   ; Let's do a sample query.
   (println "SELECT StoreName FROM StoreInformation")
@@ -108,8 +124,37 @@
                                                    (:totalsales %) "!"))
                        result)))
 
+  (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation INNER JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
+  (run-and-show
+    (sql/join :inner
+              (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
+                         [StoreInformation TownInformation]
+                         (= StoreInformation.StoreName TownInformation.TownName))))
+
+  (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation LEFT JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
+  (run-and-show
+    (sql/join :left
+              (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
+                         [StoreInformation TownInformation]
+                         (= StoreInformation.StoreName TownInformation.TownName))))
+
+  (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation RIGHT JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
+  (run-and-show
+    (sql/join :right
+              (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
+                         [StoreInformation TownInformation]
+                         (= StoreInformation.StoreName TownInformation.TownName))))
+
+  (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation FULL JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
+  (run-and-show
+    (sql/join :full
+              (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
+                         [StoreInformation TownInformation]
+                         (= StoreInformation.StoreName TownInformation.TownName))))
+
   ; Cover our tracks.
-  (sql/run *conn-info* (sql/drop-table StoreInformation)))
+  (sql/run *conn-info* (sql/drop-table StoreInformation))
+  (sql/run *conn-info* (sql/drop-table TownInformation)))
 
 (comment
   ; Modify existing tables
