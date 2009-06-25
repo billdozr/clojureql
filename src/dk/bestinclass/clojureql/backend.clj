@@ -116,24 +116,32 @@
   (fn [stmt db] [(stmt :type) (class db)])
   :hierarchy sql-hierarchy)
 
+(defn compile-column-spec
+  [columns aliases]
+  (str-cat ","
+           (map (fn [spec]
+                  (let [col (column-from-spec spec)]
+                    (-> spec
+                      compile-function
+                      (compile-alias col aliases)
+                      ->string)))
+                columns)))
+
+(defn compile-table-spec
+  [tables aliases]
+  (str-cat ","
+           (map (fn [spec]
+                  (let [table (table-from-spec spec)]
+                    (-> spec
+                      (compile-alias table aliases)
+                      ->string)))
+                tables)))
+
 (defmethod compile-sql [::Select ::Generic]
   [stmt _]
   (let [{:keys [columns tables predicates column-aliases table-aliases]} stmt
-        cols  (str-cat ","
-                      (map (fn [spec]
-                             (let [col (column-from-spec spec)]
-                               (-> spec
-                                 compile-function
-                                 (compile-alias col column-aliases)
-                                 ->string)))
-                           columns))
-        tabls (str-cat ","
-                      (map (fn [spec]
-                             (let [table (table-from-spec spec)]
-                               (-> spec
-                                 (compile-alias table table-aliases)
-                                 ->string)))
-                           tables))
+        cols  (compile-column-spec columns column-aliases)
+        tabls (compile-table-spec tables table-aliases)
         stmnt (list* "SELECT" cols
                      "FROM"   tabls
                      (when predicates
