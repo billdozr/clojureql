@@ -3,4 +3,5 @@ classes/*
 *.jar
 .pc
 patches
-derby.*
+derby.demo/*
+derby.log
