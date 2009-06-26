@@ -14,11 +14,11 @@
 ;; CONNECTION ==============================================
 
 (defstruct connection-info
-  :jdbc-url
-  :username
-  :password)
+  :jdbc-url :username :password)
 
 (defn make-connection-info
+  " Given the arguments, this will return a hash-map which serves are your connection
+    information for ex. with-connection "
   ([protocol host username password]
      (struct connection-info (format "jdbc:%s:%s" protocol host) username password))
   ([protocol host]
@@ -52,8 +52,11 @@
   "Load the named JDBC driver. Has to be called once before accessing
   the database."
   [driver]
-  (clojure.lang.RT/classForName driver)
-  nil)
+  (try
+   (clojure.lang.RT/classForName driver)
+   (catch Exception e
+     (throw
+      (Exception. "The driver could not be loaded, please verify thats its found on the classpath")))))
 
 ;; SQL COMPILATION ==========================================
 
@@ -302,7 +305,8 @@
   "Return a prepared statement for the given SQL statement in the
   context of the given connection."
   [sql-stmt conn]
-  (doto (.prepareStatement conn (compile-sql sql-stmt conn))
+  (doto
+      (.prepareStatement conn (compile-sql sql-stmt conn))
     (set-env (sql-stmt :env))))
 
 (defn in-transaction*
