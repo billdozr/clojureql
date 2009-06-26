@@ -146,3 +146,26 @@
      (if-not (vector? target)
              target
              (str (first wrapper) (str-cat ", "  target) (second wrapper)))))
+
+
+;; :TODO: Strip this for 1.0
+
+(defn pa
+  " pa=Print AST, helper func for debugging purposes "
+  [ast]
+  (doseq [entry ast]
+    (prn entry)))
+
+
+(defn vb
+  " vb=View batch, helper func for debugging purposes "
+  [ast]
+  (doseq [row (:statements ast)]
+    (println (:sql row))))
+
+(defn print-rows
+  "Print all rows in the query."
+  [con query]
+  (run [con results] query
+    (doseq [row results]
+      (println row))))
