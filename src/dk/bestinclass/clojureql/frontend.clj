@@ -72,6 +72,9 @@
 (defstruct sql-batch-statement
   :type :statements)
 
+(defstruct sql-raw-statement
+  :type :statement)
+
 ;; HIERARCHY ===============================================
 
 (def
@@ -122,6 +125,15 @@
 
 ; Queries
 
+(defn raw
+  "Executes a raw SQL statement - This should not be necessary and its
+   definately not recommended. If you find ClojureQL lacking in features
+   please leave us a note on GitHub!"
+  [txt]
+  (struct-map sql-raw-statement
+    :type      ::Raw
+    :statement txt))
+  
 (defn query*
   "Driver for the query macro. Don't call directly!"
   [col-spec table-spec pred-spec]

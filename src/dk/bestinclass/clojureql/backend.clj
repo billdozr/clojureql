@@ -299,6 +299,10 @@
                     "IF EXISTS")
                   table])))
 
+(defmethod compile-sql [::Raw ::Generic]
+  [stmt _]
+  (:statement stmt))
+
 ;; SQL EXECUTION ============================================
 
 (defn prepare-statement
@@ -366,6 +370,13 @@
   [sql-stmt conn]
   (in-transaction conn
     (doall (map #(execute-sql % conn) (sql-stmt :statements)))))
+
+(defmethod execute-sql ::Raw
+  [sql-stmt conn]
+  (-> sql-stmt
+      ((get-method execute-sql ::Execute) conn)
+      .getResultSet
+      resultset-seq))
 
 ;; INTERFACE ================================================
 
