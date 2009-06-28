@@ -83,6 +83,9 @@
 (declare compile-function)
 
 (defn infixed
+  "Takes a quasiquoted form and infixes the operaters.
+
+   (infixed `(+ 5 5)) => (5 + 5) "
   [form]
   (str "(" (str-cat " " (interpose (->string (first form))
                                    (map compile-function (rest form))))
@@ -90,7 +93,9 @@
 
 (defn compile-function
   [col-spec]
-  "Compile a function specification into a string."
+  "Compile a function specification into a string.
+
+   (compile-function (= 25 (sum count)) => (25 = sum(count)) "
   (if (or (seq? col-spec) (list? col-spec) (vector? col-spec))
     (let [[function col & args] col-spec]
       (if (= (sql-function-type function) :infix)
