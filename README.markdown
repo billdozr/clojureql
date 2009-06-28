@@ -28,7 +28,7 @@ Select some specific columns from the table.
 
 Group by some column.
 
-        (group-by :descending (query [a (sum b)] table))
+        (group-by (query [a (sum b)] table) a)
 
 Note how group-by is a function of the query.
 
@@ -78,6 +78,9 @@ fetch and use ClojureQL.
                 <dependency org="dk.bestinclass" name="clojureql" rev="1.0.0"
                         conf="*->compiled,derby"/>
         </dependencies>
+
+Note: the Ivy repository will be installed with the 1.0 release. For now
+only the manual way is available.
 
 ## Copyright
 
