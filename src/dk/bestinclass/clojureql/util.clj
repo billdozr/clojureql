@@ -25,13 +25,13 @@
                    "only Symbols, Keywords, Strings or Vectors are allowed"))))
 
 (defn ->string
-  "Converts the given thing to a string."
-  [thing]
+  "Converts an object into a string"
+  [obj]
   (cond
-    (string? thing)  thing
-    (symbol? thing)  (name thing)
-    (keyword? thing) (name thing)
-    :else            (str thing)))
+    (string? obj)  obj
+    (symbol? obj)  (name obj)
+    (keyword? obj) (name obj)
+    :else          (str obj)))
 
 (defn column-from-spec
   "Try to get the column from a specificaton. Examples:
@@ -55,6 +55,9 @@
     :else                table-spec))
 
 (defn check-alias
+  " Takes an output style and a colspec, returns aliases
+
+    (check-alias [[] {}] `[foo :as bar]) => [foo] {foo bar}"
   [[specs aliases] [orig as aka]]
   (if (= as :as)
     (vector (conj specs orig) (conj aliases [(column-from-spec orig) aka]))
@@ -86,12 +89,12 @@
 
 (defn self-eval?
   "Check whether the given form is self-evaluating."
-  [thing]
-  (or (keyword? thing)
-      (number? thing)
-      (instance? Character thing)
-      (string? thing)
-      (nil? thing)))
+  [obj]
+  (or (keyword?  obj)
+      (number?   obj)
+      (instance? Character obj)
+      (string?   obj)
+      (nil?      obj)))
 
 (defn flatten-map
   "Flatten the keys and values of a map into a list."
@@ -126,12 +129,16 @@
   [form]
   (quasiquote* form))
 
-(defn str-cat
-  "Concate collection to a string. The member a separated by separator."
+bv(defn str-cat
+  "Concatenate collection to a string. The members are separated by separator."
   [sep coll]
   (apply str (interpose sep coll)))
 
 (defn case-str
+  " Takes 2 arguments, a method and a target. The method will be applied to the target
+    or members of the target if its a vector.
+
+    (case-str #(.toUpperCase %) ['clojureql']) => 'CLOJUREQL' "
   [fn-format target]
   (let [target (into [] target)
         seq-way (fn [_]
@@ -141,6 +148,10 @@
      (vector? target)    (seq-way target))))
 
 (defn ->comma-sep
+  " Will take a vector seperate the items with commas. If argument is not a
+    vector, target is returned.
+
+    (->comma-sep '' ['foo 'bar 'baz]) => 'foo, bar, baz' "
   ([target] (->comma-sep "" target))
   ([wrapper target]
      (if-not (vector? target)
