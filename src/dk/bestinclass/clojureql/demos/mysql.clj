@@ -4,7 +4,8 @@
 (ns dk.bestinclass.clojureql.demos.mysql
   (:gen-class)
   (:require
-     [dk.bestinclass.clojureql :as sql]))
+     [dk.bestinclass.clojureql :as sql]
+     [dk.bestinclass.clojureql.backend.mysql :as mysql]))
 
 ; Adapt the following connection-info to your local database.
 (def *conn-info*

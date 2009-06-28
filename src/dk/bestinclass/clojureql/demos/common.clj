@@ -14,9 +14,9 @@
                                           StoreName "varchar(100)"
                                           Sales int
                                           Date date]
-                                         :primary  id
-                                         :not-null id
-                                         :auto-inc id))
+                                         :primary-key  id
+                                         :not-null     id
+                                         :auto-inc     id))
 
   (sql/run *conn-info* (sql/create-table TownInformation
                                          [TownName "varchar(100)"
@@ -153,11 +153,11 @@
                          (= StoreInformation.StoreName TownInformation.TownName))))
 
   (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation FULL JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
-  (run-and-show
+(comment  (run-and-show
     (sql/join :full
               (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
                          [StoreInformation TownInformation]
-                         (= StoreInformation.StoreName TownInformation.TownName))))
+                         (= StoreInformation.StoreName TownInformation.TownName)))))
 
   ; Cover our tracks.
   (sql/run *conn-info* (sql/drop-table StoreInformation))
