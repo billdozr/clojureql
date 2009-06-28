@@ -12,13 +12,13 @@
 
 ; Adapt the following connection-info to your local database.
 (def *conn-info*
-    :MySQL  (sql/make-connection-info "mysql"
-                                      "//localhost/cql"
-                                      "cql"
-                                      "cql"))
+     (sql/make-connection-info "mysql"              ; Type
+                               "//localhost/cql"    ; Adress and db (cql)
+                               "cql"                ; Username
+                               "cql"))              ; Password
 
 (def *driver*
-    :MySQL  "com.mysql.jdbc.Driver")
+     "com.mysql.jdbc.Driver")
 
 (defn run-and-show
   [query]
@@ -35,14 +35,13 @@
   ; Create the table we will use in the demo.
   (sql/run *conn-info*
            (sql/create-table StoreInformation
-                             [id "int(11)"
-                              StoreName "varchar(100)"
-                              Sales "int(11)"
+                             [id          "int(11)"
+                              StoreName   "varchar(100)"
+                              Sales       "int(11)"
                               Date date]
-                             :primary  id
-                             :not-null id
-                             :auto-inc id))
-
+                             :primary    id
+                             :not-null   id
+                             :auto-inc   id))
 
   ; Populate the table with data.
   (let [make-stmt (fn [[store sale date]]
@@ -54,7 +53,7 @@
                    ["San Diego"      250 (java.util.Date. 1999 1 7)]
                    ["San Francisco"  300 (java.util.Date. 1999 1 8)]
                    ["Los Angeles"    100 (java.util.Date. 1999 1 8)]
-                   ["Boston"         700 (java.util.Date. 1999 1 9)]]]
+                   ["Bozton"         700 (java.util.Date. 1999 1 9)]]]
     (doseq [record data]
       (sql/run *conn-info* (make-stmt record))))
 
@@ -94,6 +93,12 @@
                               :descending
                               Sales))
 
+  ; Oops - looks like we need to update 'Boztons' storename
+  (println "UPDATE StoreInformation SET 'storename' = 'Boston' WHERE 'storename' = 'Bozton'")
+  (sql/run *conn-info* (sql/update StoreInformation
+                            [storename "Boston"]
+                            (= storename "Bozton")))
+  
   ; What is the average of our sales?
   (println "SELECT avg(Sales) FROM StoreInformation")
   (run-and-show (sql/query (avg Sales) StoreInformation))
@@ -133,6 +138,7 @@
                                                    " sold $"
                                                    (:totalsales %) "!"))
                        result)))
-
+  
   ; Cover our tracks.
-  (sql/run *conn-info* (sql/drop-table StoreInformation)))
+  (sql/run *conn-info* (sql/drop-table StoreInformation))
+  nil)

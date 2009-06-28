@@ -129,7 +129,7 @@
   [form]
   (quasiquote* form))
 
-bv(defn str-cat
+(defn str-cat
   "Concatenate collection to a string. The members are separated by separator."
   [sep coll]
   (apply str (interpose sep coll)))
