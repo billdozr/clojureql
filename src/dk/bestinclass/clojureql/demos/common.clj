@@ -32,7 +32,7 @@
                    ["San Diego"      250 (java.util.Date. 1999 1 7)]
                    ["San Francisco"  300 (java.util.Date. 1999 1 8)]
                    ["Los Angeles"    100 (java.util.Date. 1999 1 8)]
-                   ["Boston"         700 (java.util.Date. 1999 1 9)]]]
+                   ["Bozton"         700 (java.util.Date. 1999 1 9)]]]
     (doseq [record data]
       (sql/run *conn-info* (make-stmt record))))
 
@@ -84,6 +84,13 @@
                               :descending
                               Sales))
 
+  ; Oops - looks like we need to update 'Boztons' storename
+  (println "UPDATE StoreInformation SET 'storename' = 'Boston' WHERE 'storename' = 'Bozton'")
+  (sql/run *conn-info* (sql/update StoreInformation
+                            [storename "Boston"]
+                            (= storename "Bozton")))
+  
+  
   ; What is the average of our sales?
   (println "SELECT avg(Sales) FROM StoreInformation")
   (run-and-show (sql/query (avg Sales) StoreInformation))
@@ -154,7 +161,8 @@
 
   ; Cover our tracks.
   (sql/run *conn-info* (sql/drop-table StoreInformation))
-  (sql/run *conn-info* (sql/drop-table TownInformation)))
+  (sql/run *conn-info* (sql/drop-table TownInformation))
+  nil)
 
 (comment
   ; Modify existing tables
