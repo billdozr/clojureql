@@ -9,9 +9,9 @@ functions. Many of the database specifics can be abstracted away.
 At the moment we provide special backends for Derby and MySQL. Further
 code for other database systems is always appreciated...
 
-The syntax is different to SQL, but abstracting the syntax it is (relatively)
+The syntax is different from SQL, but by abstracting the syntax it is (relatively)
 easy to provide special operations for the different databases. With Strings
-only, this would be much harder.
+only, this would be much more difficult.
 
 ## Documentation
 
