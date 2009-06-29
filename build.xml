@@ -75,7 +75,9 @@
             <arg value="dk.bestinclass.clojureql.util"/>
             <arg value="dk.bestinclass.clojureql"/>
             <arg value="dk.bestinclass.clojureql.backend.derby"/>
+            <arg value="dk.bestinclass.clojureql.backend.mysql"/>
             <arg value="dk.bestinclass.clojureql.demos.derby"/>
+            <arg value="dk.bestinclass.clojureql.demos.mysql"/>
         </java>
     </target>
 
