@@ -90,7 +90,7 @@
                 includes="dk/bestinclass/clojureql.version.properties"/>
             <fileset dir="${classes.dir}"
                 includes="**/*"
-                excludes="dk/bestinclass/clojureql/demo*"/>
+                excludes="dk/bestinclass/clojureql/demos/*"/>
             <manifest>
                 <attribute name="Class-Path" value="."/>
             </manifest>
@@ -100,7 +100,7 @@
             <path location="LICENSE.txt"/>
             <fileset dir="${src.dir}"
                 includes="**/*"
-                excludes="dk/bestinclass/clojureql/demo.clj"/>
+                excludes="dk/bestinclass/clojureql/demos/*"/>
         </jar>
     </target>
 
