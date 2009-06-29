@@ -153,11 +153,11 @@
                          (= StoreInformation.StoreName TownInformation.TownName))))
 
   (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation FULL JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
-(comment  (run-and-show
+  (run-and-show
     (sql/join :full
               (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
                          [StoreInformation TownInformation]
-                         (= StoreInformation.StoreName TownInformation.TownName)))))
+                         (= StoreInformation.StoreName TownInformation.TownName))))
 
   ; Cover our tracks.
   (sql/run *conn-info* (sql/drop-table StoreInformation))
