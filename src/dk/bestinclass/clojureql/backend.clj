@@ -106,18 +106,22 @@
 (def sql-hierarchy
   (atom (-> (make-hierarchy)
           (derive java.sql.Connection ::Generic)
-          (derive ::Select         ::ExecuteQuery)
-          (derive ::Join           ::Select)
-          (derive ::OrderedSelect  ::Select)
-          (derive ::GroupedSelect  ::Select)
-          (derive ::DistinctSelect ::Select)
-          (derive ::HavingSelect   ::Select)
-          (derive ::Union          ::ExecuteQuery)
-          (derive ::Intersect      ::ExecuteQuery)
-          (derive ::Difference     ::ExecuteQuery)
-          (derive ::Update         ::ExecuteUpdate)
-          (derive ::Insert         ::ExecuteUpdate)
-          (derive ::Delete         ::ExecuteUpdate))))
+          (derive ::Select            ::ExecuteQuery)
+          (derive ::Join              ::Select)
+          (derive ::InnerJoin         ::Join)
+          (derive ::LeftJoin          ::Join)
+          (derive ::RightJoin         ::Join)
+          (derive ::FullJoin          ::Join)
+          (derive ::OrderedSelect     ::Select)
+          (derive ::GroupedSelect     ::Select)
+          (derive ::DistinctSelect    ::Select)
+          (derive ::HavingSelect      ::Select)
+          (derive ::Union             ::ExecuteQuery)
+          (derive ::Intersect         ::ExecuteQuery)
+          (derive ::Difference        ::ExecuteQuery)
+          (derive ::Update            ::ExecuteUpdate)
+          (derive ::Insert            ::ExecuteUpdate)
+          (derive ::Delete            ::ExecuteUpdate))))
 
 (defmulti compile-sql
   "Compile the given SQL statement for the given database."
@@ -159,18 +163,48 @@
 
 (defmethod compile-sql [::Join ::Generic]
   [stmt _]
-  (let [join-types {:inner "INNER" :left  "LEFT" :right "RIGHT" :full  "FULL"}
-        {:keys [query join]} stmt
+  (let [join-types {::InnerJoin "INNER"
+                    ::LeftJoin  "LEFT"
+                    ::RightJoin "RIGHT"
+                    ::FullJoin  "FULL"}
+        {:keys [query]} stmt
         {:keys [columns tables predicates column-aliases table-aliases]} query
         cols  (compile-column-spec columns column-aliases)
         left  (compile-table-spec [(first tables)] table-aliases)
         right (compile-table-spec [(second tables)] table-aliases)
         stmnt (list "SELECT" cols
                     "FROM"   left
-                    (join-types join)
+                    (join-types (:type stmt))
                     "JOIN"   right
                     "ON"     (infixed predicates))]
     (str-cat " " stmnt)))
+
+(defmethod compile-sql [::FullJoin ::EmulateFullJoin]
+  [stmt db]
+  (let [query (:query stmt)
+        {:keys [columns tables predicates column-aliases table-aliases]} query
+        cols  (compile-column-spec columns column-aliases)
+        left  (compile-table-spec [(first tables)] table-aliases)
+        right (compile-table-spec [(second tables)] table-aliases)
+        stmnt (list "SELECT" cols
+                    "FROM"   left
+                    "LEFT JOIN" right
+                    "ON"     (infixed predicates)
+                    "UNION ALL"
+                    "SELECT" cols
+                    "FROM"   right
+                    "LEFT JOIN" left
+                    "ON"     (infixed predicates)
+                    "WHERE"  (second predicates) "IS NULL")]
+    (str-cat " " stmnt)))
+
+(prefer-method compile-sql
+               [::FullJoin ::EmulateFullJoin]
+               [::Select ::Generic])
+
+(prefer-method compile-sql
+               [::FullJoin ::EmulateFullJoin]
+               [::Join ::Generic])
 
 (defmethod compile-sql [::OrderedSelect ::Generic]
   [stmt db]

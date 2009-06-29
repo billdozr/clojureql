@@ -19,7 +19,7 @@
   :type :columns :tables :predicates :column-aliases :table-aliases :env)
 
 (defstruct sql-join
-  :type :query :join :env)
+  :type :query :env)
 
 (defstruct sql-ordered-query
   :type :query :order :columns :env)
@@ -84,6 +84,10 @@
   select-hierarchy
   (-> (make-hierarchy)
     (derive ::Join           ::Select)
+    (derive ::InnerJoin      ::Join)
+    (derive ::LeftJoin       ::Join)
+    (derive ::RightJoin      ::Join)
+    (derive ::FullJoin       ::Join)
     (derive ::OrderedSelect  ::Select)
     (derive ::GroupedSelect  ::Select)
     (derive ::DistinctSelect ::Select)))
@@ -166,11 +170,14 @@
 (defn join
   "Turn a query into JOIN."
   [join-type kwery]
-  (struct-map sql-join
-              :type  ::Join
-              :query kwery
-              :join  join-type
-              :env   (kwery :env)))
+  (let [join-types {:inner ::InnerJoin
+                    :left  ::LeftJoin
+                    :right ::RightJoin
+                    :full  ::FullJoin}]
+    (struct-map sql-join
+                :type  (get join-types join-type ::InnerJoin)
+                :query kwery
+                :env   (kwery :env))))
 
 (defn order-by*
   "Driver for the order-by macro. Don't call directly."

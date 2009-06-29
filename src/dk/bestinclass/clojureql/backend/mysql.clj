@@ -10,11 +10,12 @@
 ;; this software.
 
 (clojure.core/ns dk.bestinclass.clojureql.backend.mysql
-  (:import
-     clojure.lang.RT)
   (:require
      [dk.bestinclass.clojureql :as cql]
      [dk.bestinclass.clojureql.util :as util]))
+
+; Register for emulation of full join.
+(swap! cql/sql-hierarchy derive org.mysql.jdbc.Connection ::cql/EmulateFullJoin)
 
 (defmethod cql/compile-sql
   [::cql/CreateTable com.mysql.jdbc.Connection]
@@ -35,4 +36,3 @@
                  (when-not (nil? (:primary-key options))
                    (format ",PRIMARY KEY (`%s`)" (:primary-key options)))
                  ") "))))
-    
