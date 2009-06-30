@@ -11,6 +11,10 @@
 
 (clojure.core/in-ns 'dk.bestinclass.clojureql)
 
+;; GLOBALS ==============================================
+
+(def *java-sql-null* 0)
+
 ;; CONNECTION ==============================================
 
 (defstruct connection-info
