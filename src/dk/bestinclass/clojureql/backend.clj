@@ -33,19 +33,21 @@
            cnt 1]
       (when env
         (let [value (first env)]
-          (condp instance? value
-            String             (.setString    stmt cnt value)
-            Float              (.setFloat     stmt cnt value)
-            Double             (.setDouble    stmt cnt value)
-            Long               (.setLong      stmt cnt value)
-            Short              (.setShort     stmt cnt value)
-            Integer            (.setInt       stmt cnt value)
-            java.net.URL       (.setUrl       stmt cnt value)
-            java.sql.Date      (.setDate      stmt cnt value)
-            java.util.Date     (let [value (java.sql.Date. (.getTime value))]
-                                 (.setDate    stmt cnt value))
-            java.sql.Time      (.setTime      stmt cnt value)
-            java.sql.Timestamp (.setTimestamp stmt cnt value))
+          (if (nil? value)
+            (.setNull stmt cnt *java-sql-null*)
+            (condp instance? value
+              String             (.setString    stmt cnt value)
+              Float              (.setFloat     stmt cnt value)
+              Double             (.setDouble    stmt cnt value)
+              Long               (.setLong      stmt cnt value)
+              Short              (.setShort     stmt cnt value)
+              Integer            (.setInt       stmt cnt value)
+              java.net.URL       (.setUrl       stmt cnt value)
+              java.sql.Date      (.setDate      stmt cnt value)
+              java.util.Date     (let [value (java.sql.Date. (.getTime value))]
+                                   (.setDate    stmt cnt value))
+              java.sql.Time      (.setTime      stmt cnt value)
+              java.sql.Timestamp (.setTimestamp stmt cnt value)))
           (recur (next env) (inc cnt)))))))
 
 (defn load-driver
