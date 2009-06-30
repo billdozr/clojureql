@@ -322,7 +322,7 @@
   [sql-stmt conn]
   (doto
       (.prepareStatement conn (compile-sql sql-stmt conn))
-    (set-env (sql-stmt :env))))
+    (set-env (into [] (sql-stmt :env)))))
 
 (defn in-transaction*
   "Execute thunk wrapped into a savepoint transaction."
