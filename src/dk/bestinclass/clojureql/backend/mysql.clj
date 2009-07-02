@@ -15,7 +15,7 @@
      [dk.bestinclass.clojureql.util :as util]))
 
 ; Register for emulation of full join.
-(swap! cql/sql-hierarchy derive org.mysql.jdbc.Connection ::cql/EmulateFullJoin)
+(swap! cql/sql-hierarchy derive com.mysql.jdbc.Connection ::cql/EmulateFullJoin)
 
 (defmethod cql/compile-sql
   [::cql/CreateTable com.mysql.jdbc.Connection]
