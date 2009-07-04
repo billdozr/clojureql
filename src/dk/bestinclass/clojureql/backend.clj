@@ -31,7 +31,7 @@
 ;; MACROS ==================================================
 
 (defn set-env
-  [stmt env]
+  [#^PreparedStatement stmt env]
   (when (pos? (count env))
     (loop [env (seq env)
            cnt 1]
@@ -46,9 +46,10 @@
               Long               (.setLong      stmt cnt value)
               Short              (.setShort     stmt cnt value)
               Integer            (.setInt       stmt cnt value)
-              java.net.URL       (.setUrl       stmt cnt value)
+              java.net.URL       (.setURL       stmt cnt value)
               java.sql.Date      (.setDate      stmt cnt value)
-              java.util.Date     (let [value (java.sql.Date. (.getTime value))]
+              java.util.Date     (let [value (java.sql.Date.
+                                               (.getTime #^java.util.Date value))]
                                    (.setDate    stmt cnt value))
               java.sql.Time      (.setTime      stmt cnt value)
               java.sql.Timestamp (.setTimestamp stmt cnt value)))
@@ -353,14 +354,14 @@
 (defn prepare-statement
   "Return a prepared statement for the given SQL statement in the
   context of the given connection."
-  [sql-stmt conn]
-  (doto
-      (.prepareStatement conn (compile-sql sql-stmt conn))
+  {:tag PreparedStatement}
+  [sql-stmt #^Connection conn]
+  (doto (.prepareStatement conn (compile-sql sql-stmt conn))
     (set-env (into [] (sql-stmt :env)))))
 
 (defn in-transaction*
   "Execute thunk wrapped into a savepoint transaction."
-  [conn thunk]
+  [#^Connection conn thunk]
   (let [auto-commit-state (.getAutoCommit conn)]
     (try
       (.setAutoCommit conn false)
@@ -396,16 +397,14 @@
 
 (defmethod execute-sql ::ExecuteQuery
   [sql-stmt conn]
-  (->  sql-stmt
-    ((get-method execute-sql ::Execute) conn)
-    .getResultSet
-    resultset-seq))
+  (let [stmt       ((get-method execute-sql ::Execute) sql-stmt conn)
+        result-set (.getResultSet #^PreparedStatement stmt)]
+    (resultset-seq result-set)))
 
 (defmethod execute-sql ::ExecuteUpdate
   [sql-stmt conn]
-  (-> sql-stmt
-    ((get-method execute-sql ::Execute) conn)
-    .getUpdateCount))
+  (let [stmt ((get-method execute-sql ::Execute) conn)]
+    (.getUpdateCount #^PreparedStatement stmt)))
 
 (defmethod execute-sql ::LetQuery
   [sql-stmt conn]
@@ -418,10 +417,9 @@
 
 (defmethod execute-sql ::Raw
   [sql-stmt conn]
-  (-> sql-stmt
-      ((get-method execute-sql ::Execute) conn)
-      .getResultSet
-      resultset-seq))
+  (let [stmt       ((get-method execute-sql ::Execute) sql-stmt conn)
+        result-set (.getResultSet #^PreparedStatement stmt)]
+    (resultset-seq stmt)))
 
 ;; INTERFACE ================================================
 

@@ -12,6 +12,8 @@
 (ns dk.bestinclass.clojureql
   (:use
      dk.bestinclass.clojureql.util)
+  (:import
+     (java.sql Connection PreparedStatement))
   (:load
      "clojureql/frontend"
      "clojureql/backend"))
