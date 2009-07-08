@@ -403,7 +403,7 @@
 
 (defmethod execute-sql ::ExecuteUpdate
   [sql-stmt conn]
-  (let [stmt ((get-method execute-sql ::Execute) conn)]
+  (let [stmt ((get-method execute-sql ::Execute) sql-stmt conn)]
     (.getUpdateCount #^PreparedStatement stmt)))
 
 (defmethod execute-sql ::LetQuery
