@@ -13,8 +13,6 @@
 
 ;; GLOBALS ==============================================
 
-(def *java-sql-null* 0)
-
 ;; CONNECTION ==============================================
 
 (defstruct connection-info
@@ -38,7 +36,8 @@
       (when env
         (let [value (first env)]
           (if (nil? value)
-            (.setNull stmt cnt *java-sql-null*)
+            ; FIXME: This does not work!
+            (.setNull stmt cnt java.sql.Types/NULL)
             (condp instance? value
               String             (.setString    stmt cnt value)
               Float              (.setFloat     stmt cnt value)
