@@ -74,40 +74,44 @@
     (str (->string col-or-table-spec) " AS " (->string aka))
     col-or-table-spec))
 
-(defn- sql-function-type
-  "Returns the type of the given SQL function. This is basically only
-  interesting to catch the mathematical operators, which are infixed.
-  Other function calls are handled normally."
-  [sql-fun]
-  (let [infix? (comp #{"+" "-" "*" "/" "and" "or" "="
-                       "<=" ">=" "<" ">" "<>" "like"}
-                     ->string)]
-    (if (infix? sql-fun)
-      :infix
-      :funcall)))
+(def #^{:doc "A map of SQL function names to their type."} sql-function-type
+  (atom {"+"    ::Infix
+         "-"    ::Infix
+         "*"    ::Infix
+         "/"    ::Infix
+         "="    ::Infix
+         "<="   ::Infix
+         ">="   ::Infix
+         "<"    ::Infix
+         ">"    ::Infix
+         "<>"   ::Infix
+         "like" ::Infix
+         "or"   ::Infix
+         "and"  ::Infix}))
 
-(declare compile-function)
+(defmulti compile-function
+  "Compile a function specification into a string.
+  (compile-function '(= 25 (sum count))) => (25 = sum(count))"
+  {:arglists '([form])}
+  (fn compile-function-dispatch [form]
+    (if (or (seq? form) (vector? form))
+      (get @sql-function-type (-> form first ->string) ::Funcall)
+      ::Identity)))
 
-(defn infixed
-  "Takes a quasiquoted form and infixes the operaters.
-
-   (infixed `(+ 5 5)) => (5 + 5) "
+(defmethod compile-function ::Infix
   [form]
   (str "(" (str-cat " " (interpose (->string (first form))
                                    (map compile-function (rest form))))
        ")"))
 
-(defn compile-function
-  [col-spec]
-  "Compile a function specification into a string.
+(defmethod compile-function ::Funcall
+  [form]
+  (str (first form) "(" (str-cat "," (cons (->string (second form))
+                                           (nnext form))) ")"))
 
-   (compile-function (= 25 (sum count)) => (25 = sum(count)) "
-  (if (or (seq? col-spec) (list? col-spec) (vector? col-spec))
-    (let [[function col & args] col-spec]
-      (if (= (sql-function-type function) :infix)
-        (infixed col-spec)
-        (str function "(" (str-cat "," (cons (->string col) args)) ")")))
-    col-spec))
+(defmethod compile-function ::Identity
+  [form]
+  form)
 
 (def sql-hierarchy
   (atom (-> (make-hierarchy)
@@ -164,7 +168,7 @@
         stmnt (list* "SELECT" cols
                      "FROM"   tabls
                      (when predicates
-                       (list "WHERE" (infixed predicates))))]
+                       (list "WHERE" (compile-function predicates))))]
     (str-cat " " stmnt)))
 
 (defmethod compile-sql [::Join ::Generic]
@@ -182,7 +186,7 @@
                     "FROM"   left
                     (join-types (:type stmt))
                     "JOIN"   right
-                    "ON"     (infixed predicates))]
+                    "ON"     (compile-function predicates))]
     (str-cat " " stmnt)))
 
 (defmethod compile-sql [::FullJoin ::EmulateFullJoin]
@@ -195,12 +199,12 @@
         stmnt (list "SELECT" cols
                     "FROM"   left
                     "LEFT JOIN" right
-                    "ON"     (infixed predicates)
+                    "ON"     (compile-function predicates)
                     "UNION ALL"
                     "SELECT" cols
                     "FROM"   right
                     "LEFT JOIN" left
-                    "ON"     (infixed predicates)
+                    "ON"     (compile-function predicates)
                     "WHERE"  (second predicates) "IS NULL")]
     (str-cat " " stmnt)))
 
@@ -280,13 +284,13 @@
                                                #(str % " = ?")
                                                ->string)
                                              columns))
-                  "WHERE"  (infixed predicates)])))
+                  "WHERE"  (compile-function predicates)])))
 
 (defmethod compile-sql [::Delete ::Generic]
   [stmt _]
   (let [{:keys [table predicates]} stmt]
     (str-cat " " ["DELETE FROM" table
-                  "WHERE"       (infixed predicates)])))
+                  "WHERE"       (compile-function predicates)])))
 
 (defmulti compile-sql-alter
   "Sub method to compile ALTER statements."
