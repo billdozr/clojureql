@@ -105,27 +105,44 @@
 
 ;; COMPILER ================================================
 
-(defn build-env
+(def #^{:doc "A map of functions to their type."} where-clause-type
+  (atom {"and" ::Recursive
+         "or"  ::Recursive}))
+
+(defmulti build-env
   "Build environment vector. Replace extracted values with ?."
-  [[function col value & more :as form] env]
-  (let [and-or?    (comp #{"or" "and"} ->string)
-        predicate? (comp #{"=" "<=" ">=" "<" ">" "<>" "like"} ->string)]
-    (when function
-      (cond
-        (and-or? function)    (let [[rst env]
-                                    (reduce
-                                      (fn [[rst env] more]
-                                        (let [[more env] (build-env more env)]
-                                          [(conj rst more) env]))
-                                      [[] env]
-                                      (rest form))]
-                                [(vec (cons function rst)) env])
-        (predicate? function) (cond
-                                (nil? value)       [[function col "NULL"] env]
-                                (self-eval? value) [[function col "?"] (conj env value)]
-                                :else              [[function col value] env])
-        :else (throw (Exception.
-                       (str "Unsupported predicate form: " function)))))))
+  {:arglists '([form env])}
+  (fn build-env-dispatch [form _]
+    (when-let [form (seq form)]
+      (get @where-clause-type (-> form first ->string) ::NonRecursive))))
+
+(defmethod build-env ::Recursive
+  build-env-recursive
+  [[function & forms] env]
+  (let [[forms env]
+        (reduce
+          (fn [[forms env] form]
+            (let [[form env] (build-env form env)]
+              [(conj forms form) env]))
+          [[] env] forms)]
+    [(vec (cons function forms)) env]))
+
+(defmethod build-env ::NonRecursive
+  build-env-non-recursive
+  [[function & args] env]
+  (let [[args env]
+        (reduce (fn [[args env] arg]
+                  (cond
+                    (nil? arg)       [(conj args "NULL") env]
+                    (self-eval? arg) [(conj args "?")    (conj env arg)]
+                    :else            [(conj args arg)    env]))
+                [[] env] args)]
+    [(vec (cons function args)) env]))
+
+(defmethod build-env nil
+  build-env-nil
+  [_ _]
+  nil)
 
 ; Queries
 
@@ -137,7 +154,7 @@
   (struct-map sql-raw-statement
     :type      ::Raw
     :statement txt))
-  
+
 (defn query*
   "Driver for the query macro. Don't call directly!"
   [col-spec table-spec pred-spec]
