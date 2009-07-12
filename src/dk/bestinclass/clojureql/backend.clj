@@ -35,24 +35,24 @@
            cnt 1]
       (when env
         (let [value (first env)]
-          (if (nil? value)
-            ; FIXME: This does not work!
-            (.setNull stmt cnt java.sql.Types/NULL)
-            (condp instance? value
-              String             (.setString    stmt cnt value)
-              Float              (.setFloat     stmt cnt value)
-              Double             (.setDouble    stmt cnt value)
-              Long               (.setLong      stmt cnt value)
-              Short              (.setShort     stmt cnt value)
-              Integer            (.setInt       stmt cnt value)
-              java.net.URL       (.setURL       stmt cnt value)
-              java.sql.Date      (.setDate      stmt cnt value)
-              java.util.Date     (let [value (java.sql.Date.
-                                               (.getTime #^java.util.Date value))]
-                                   (.setDate    stmt cnt value))
-              java.sql.Time      (.setTime      stmt cnt value)
-              java.sql.Timestamp (.setTimestamp stmt cnt value)))
-          (recur (next env) (inc cnt)))))))
+          (if-not (nil? value)
+            (do
+              (condp instance? value
+                String             (.setString    stmt cnt value)
+                Float              (.setFloat     stmt cnt value)
+                Double             (.setDouble    stmt cnt value)
+                Long               (.setLong      stmt cnt value)
+                Short              (.setShort     stmt cnt value)
+                Integer            (.setInt       stmt cnt value)
+                java.net.URL       (.setURL       stmt cnt value)
+                java.sql.Date      (.setDate      stmt cnt value)
+                java.util.Date     (let [value (java.sql.Date.
+                                                 (.getTime #^java.util.Date value))]
+                                     (.setDate    stmt cnt value))
+                java.sql.Time      (.setTime      stmt cnt value)
+                java.sql.Timestamp (.setTimestamp stmt cnt value))
+              (recur (next env) (inc cnt)))
+            (recur (next env) cnt)))))))
 
 (defn load-driver
   "Load the named JDBC driver. Has to be called once before accessing
@@ -269,11 +269,11 @@
 
 (defmethod compile-sql [::Insert ::Generic]
   [stmt _]
-  (let [{:keys [table columns]} stmt]
+  (let [{:keys [table columns env]} stmt]
     (str-cat " " ["INSERT INTO" table "("
                   (str-cat "," (map ->string columns))
                   ") VALUES ("
-                  (str-cat "," (take (count columns) (repeat "?")))
+                  (str-cat "," (map #(if (nil? %) "NULL" "?") env))
                   ")"])))
 
 (defmethod compile-sql [::Update ::Generic]
