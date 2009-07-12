@@ -75,19 +75,10 @@
     col-or-table-spec))
 
 (def #^{:doc "A map of SQL function names to their type."} sql-function-type
-  (atom {"+"    ::Infix
-         "-"    ::Infix
-         "*"    ::Infix
-         "/"    ::Infix
-         "="    ::Infix
-         "<="   ::Infix
-         ">="   ::Infix
-         "<"    ::Infix
-         ">"    ::Infix
-         "<>"   ::Infix
-         "like" ::Infix
-         "or"   ::Infix
-         "and"  ::Infix}))
+  (atom {"+"    ::Infix "-"  ::Infix "*"   ::Infix "/" ::Infix "="  ::Infix
+         "<="   ::Infix ">=" ::Infix "<"   ::Infix ">" ::Infix "<>" ::Infix
+         "like" ::Infix "or" ::Infix "and" ::Infix
+         "nil?" ::Nil?  "not-nil?" ::Nil?}))
 
 (defmulti compile-function
   "Compile a function specification into a string.
@@ -108,6 +99,13 @@
   [form]
   (str (first form) "(" (str-cat "," (cons (->string (second form))
                                            (nnext form))) ")"))
+
+(defmethod compile-function ::Nil?
+  [form]
+  (str (->string (second form))
+       (if (= "nil?" (->string (first form)))
+         " IS NULL"
+         " IS NOT NULL")))
 
 (defmethod compile-function ::Identity
   [form]

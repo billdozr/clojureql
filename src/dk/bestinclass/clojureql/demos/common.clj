@@ -32,7 +32,8 @@
                    ["San Diego"      250 (java.util.Date. 1999 1 7)]
                    ["San Francisco"  300 (java.util.Date. 1999 1 8)]
                    ["Los Angeles"    100 (java.util.Date. 1999 1 8)]
-                   ["Bozton"         700 (java.util.Date. 1999 1 9)]]]
+                   ["Boston"         700 (java.util.Date. 1999 1 9)]
+                   ["Berlin"         nil (java.util.Date. 1999 1 9)]]]
     (doseq [record data]
       (sql/run *conn-info* (make-stmt record))))
 
@@ -158,6 +159,14 @@
               (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
                          [StoreInformation TownInformation]
                          (= StoreInformation.StoreName TownInformation.TownName))))
+
+  (println "SELECT StoreName FROM StoreInformation WHERE sales IS NULL")
+  (run-and-show
+    (sql/query StoreName StoreInformation (nil? Sales)))
+
+  (println "SELECT StoreName FROM StoreInformation WHERE sales IS NOT NULL")
+  (run-and-show
+    (sql/query StoreName StoreInformation (not-nil? Sales)))
 
   ; Cover our tracks.
   (sql/run *conn-info* (sql/drop-table StoreInformation))
