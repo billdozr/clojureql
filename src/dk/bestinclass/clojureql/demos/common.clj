@@ -6,6 +6,20 @@
     (doseq [row rows]
       (prn row))))
 
+; Needed for homegrown predicate.
+(def *low-perform-threshold* 300)
+
+(swap! sql/where-clause-type assoc "is-low-performer?" ::LowPerformer)
+(swap! sql/sql-function-type assoc "is-low-performer?" ::LowPerformer)
+
+(defmethod sql/build-env ::LowPerformer
+  [form env]
+  [form (conj env *low-perform-threshold*)])
+
+(defmethod sql/compile-function ::LowPerformer
+  [form]
+  (sql/compile-function (list '< (second form) "?")))
+
 (defn -main
   [& args]
   ; Create the table we will use in the demo.
@@ -172,6 +186,10 @@
   (println "SELECT StoreName FROM StoreInformation WHERE sales IS NOT NULL")
   (run-and-show
     (sql/query StoreName StoreInformation (not (nil? Sales))))
+
+  (println "Domain predicate: is-low-performer?")
+  (run-and-show
+    (sql/query StoreName StoreInformation (is-low-performer? Sales)))
 
   ; Cover our tracks.
   (sql/run *conn-info* (sql/drop-table StoreInformation))
