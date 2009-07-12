@@ -394,7 +394,7 @@
   {:tag PreparedStatement}
   [sql-stmt #^Connection conn]
   (doto (.prepareStatement conn (compile-sql sql-stmt conn))
-    (set-env (into [] (sql-stmt :env)))))
+    (set-env (sql-stmt :env))))
 
 (defn in-transaction*
   "Execute thunk wrapped into a savepoint transaction."
