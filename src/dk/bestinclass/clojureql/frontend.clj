@@ -13,6 +13,15 @@
 
 ;; DEFINITIONS =============================================
 
+(defn- trace*
+  [qx x]
+  (print "TRACE: ") (pr qx) (print " = ") (prn x) (flush)
+  x)
+
+(defmacro #^{:private true} trace
+  [x]
+  `(trace* (quote ~x) ~x))
+
 ; Queries
 
 (defstruct sql-query
