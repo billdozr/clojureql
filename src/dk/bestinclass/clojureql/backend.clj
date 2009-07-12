@@ -78,7 +78,7 @@
   (atom {"+"    ::Infix "-"  ::Infix "*"   ::Infix "/" ::Infix "="  ::Infix
          "<="   ::Infix ">=" ::Infix "<"   ::Infix ">" ::Infix "<>" ::Infix
          "like" ::Infix "or" ::Infix "and" ::Infix
-         "nil?" ::Nil?  "not-nil?" ::Nil?}))
+         "nil?" ::Nil?  "not-nil?" ::Nil? "not" ::Not}))
 
 (defmulti compile-function
   "Compile a function specification into a string.
@@ -106,6 +106,42 @@
        (if (= "nil?" (->string (first form)))
          " IS NULL"
          " IS NOT NULL")))
+
+(defmulti not-ify
+  "Turn the given form into its complement."
+  {:arglists '([form])}
+  (fn not-ify-dispatch [form] (-> form first ->string)))
+
+(defmethod not-ify "and"
+  [form]
+  (cons 'or (map not-ify (next form))))
+
+(defmethod not-ify "or"
+  [form]
+  (cons 'and (map not-ify (next form))))
+
+(defmethod not-ify "not"
+  [form]
+  (second form))
+
+(def #^{:doc "Map of predicates to their complement."} not-ify-complement
+  (atom {"="  "<>" "<>" "="
+         "<=" ">"  ">"  "<="
+         ">=" "<"  "<"  ">="
+         "nil?" "not-nil?" "not-nil?" "nil?"}))
+
+(defmethod not-ify :default
+  [form]
+  (let [pred (-> form first ->string)]
+    (if-let [comp-pred (@not-ify-complement pred)]
+      (cons comp-pred (next form))
+      (throw
+        (Exception. (str "Don't know how to complement predicate: " pred))))))
+
+(defmethod compile-function ::Not
+  [form]
+  (let [form (not-ify (second form))]
+    (compile-function form)))
 
 (defmethod compile-function ::Identity
   [form]

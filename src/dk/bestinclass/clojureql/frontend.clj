@@ -116,7 +116,8 @@
 
 (def #^{:doc "A map of functions to their type."} where-clause-type
   (atom {"and" ::Recursive
-         "or"  ::Recursive}))
+         "or"  ::Recursive
+         "not" ::Recursive}))
 
 (defmulti build-env
   "Build environment vector. Replace extracted values with ?."

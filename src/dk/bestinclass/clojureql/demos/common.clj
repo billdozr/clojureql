@@ -168,6 +168,11 @@
   (run-and-show
     (sql/query StoreName StoreInformation (not-nil? Sales)))
 
+  (println "Again, this time with (not (nil? ..))")
+  (println "SELECT StoreName FROM StoreInformation WHERE sales IS NOT NULL")
+  (run-and-show
+    (sql/query StoreName StoreInformation (not (nil? Sales))))
+
   ; Cover our tracks.
   (sql/run *conn-info* (sql/drop-table StoreInformation))
   (sql/run *conn-info* (sql/drop-table TownInformation))
