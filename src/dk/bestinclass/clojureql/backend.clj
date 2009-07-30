@@ -211,35 +211,43 @@
                     ::LeftJoin  "LEFT"
                     ::RightJoin "RIGHT"
                     ::FullJoin  "FULL"}
-        {:keys [query]} stmt
+        {:keys [query on]} stmt
         {:keys [columns tables predicates column-aliases table-aliases]} query
         cols  (compile-column-spec columns column-aliases)
         left  (compile-table-spec [(first tables)] table-aliases)
         right (compile-table-spec [(second tables)] table-aliases)
-        stmnt (list "SELECT" cols
-                    "FROM"   left
-                    (join-types (:type stmt))
-                    "JOIN"   right
-                    "ON"     (compile-function predicates))]
+        stmnt (list* "SELECT" cols
+                     "FROM"   left
+                     (join-types (:type stmt))
+                     "JOIN"   right
+                     "ON"     (compile-function on)
+                     (when predicates
+                       ["WHERE" (compile-function predicates)]))]
     (str-cat " " stmnt)))
 
 (defmethod compile-sql [::FullJoin ::EmulateFullJoin]
   [stmt db]
-  (let [query (:query stmt)
+  (let [{:keys [query on]} stmt
         {:keys [columns tables predicates column-aliases table-aliases]} query
         cols  (compile-column-spec columns column-aliases)
         left  (compile-table-spec [(first tables)] table-aliases)
         right (compile-table-spec [(second tables)] table-aliases)
-        stmnt (list "SELECT" cols
-                    "FROM"   left
-                    "LEFT JOIN" right
-                    "ON"     (compile-function predicates)
-                    "UNION ALL"
-                    "SELECT" cols
-                    "FROM"   right
-                    "LEFT JOIN" left
-                    "ON"     (compile-function predicates)
-                    "WHERE"  (second predicates) "IS NULL")]
+        stmnt (concat ["SELECT" cols
+                       "FROM"   left
+                       "LEFT JOIN" right
+                       "ON"     (compile-function on)]
+                       (when predicates
+                         ["WHERE" (compile-function predicates)])
+                       ["UNION ALL"
+                       "SELECT" cols
+                       "FROM"   right
+                       "LEFT JOIN" left
+                       "ON"     (compile-function on)
+                       "WHERE"
+                       (if predicates
+                         (compile-function
+                           (quasiquote (and ~predicates (nil? ~(nth on 2)))))
+                         (compile-function (quasiquote (nil? ~(nth on 2)))))])]
     (str-cat " " stmnt)))
 
 (prefer-method compile-sql

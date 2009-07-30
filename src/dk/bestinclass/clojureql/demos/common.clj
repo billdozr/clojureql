@@ -148,31 +148,27 @@
 
   (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation INNER JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
   (run-and-show
-    (sql/join :inner
-              (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
-                         [StoreInformation TownInformation]
-                         (= StoreInformation.StoreName TownInformation.TownName))))
+    (sql/join (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
+                         [StoreInformation TownInformation])
+              :inner [StoreInformation.StoreName TownInformation.TownName]))
 
   (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation LEFT JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
   (run-and-show
-    (sql/join :left
-              (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
-                         [StoreInformation TownInformation]
-                         (= StoreInformation.StoreName TownInformation.TownName))))
+    (sql/join (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
+                         [StoreInformation TownInformation])
+              :left [StoreInformation.StoreName TownInformation.TownName]))
 
   (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation RIGHT JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
   (run-and-show
-    (sql/join :right
-              (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
-                         [StoreInformation TownInformation]
-                         (= StoreInformation.StoreName TownInformation.TownName))))
+    (sql/join (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
+                         [StoreInformation TownInformation])
+              :right [StoreInformation.StoreName TownInformation.TownName]))
 
   (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation FULL JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
   (run-and-show
-    (sql/join :full
-              (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
-                         [StoreInformation TownInformation]
-                         (= StoreInformation.StoreName TownInformation.TownName))))
+    (sql/join (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
+                         [StoreInformation TownInformation])
+              :full [StoreInformation.StoreName TownInformation.TownName]))
 
   (println "SELECT StoreName FROM StoreInformation WHERE sales IS NULL")
   (run-and-show

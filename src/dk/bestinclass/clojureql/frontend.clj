@@ -194,17 +194,23 @@
   ([col-spec table-spec pred-spec]
    `(query* ~@(map quasiquote* [col-spec table-spec pred-spec]))))
 
-(defn join
+(defn join*
   "Turn a query into JOIN."
-  [join-type kwery]
+  [kwery join-type on-columns]
   (let [join-types {:inner ::InnerJoin
                     :left  ::LeftJoin
                     :right ::RightJoin
                     :full  ::FullJoin}]
     (struct-map sql-join
                 :type  (get join-types join-type ::InnerJoin)
+                :on    (list* '= on-columns)
                 :query kwery
                 :env   (kwery :env))))
+
+(defmacro join
+  "Turn a query into a JOIN."
+  [kwery join-type on-columns]
+  `(join* ~kwery ~join-type ~(quasiquote* on-columns)))
 
 (defn order-by*
   "Driver for the order-by macro. Don't call directly."
