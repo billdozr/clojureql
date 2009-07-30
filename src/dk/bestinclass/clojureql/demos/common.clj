@@ -20,6 +20,10 @@
   [form]
   (sql/compile-function (list '< (second form) "?")))
 
+(defmethod sql/invert "is-low-performer?"
+  [form]
+  (list '>= (second form) "?"))
+
 (defn -main
   [& args]
   ; Create the table we will use in the demo.

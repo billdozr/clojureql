@@ -107,40 +107,44 @@
          " IS NULL"
          " IS NOT NULL")))
 
-(defmulti not-ify
+(defmulti invert
   "Turn the given form into its complement."
   {:arglists '([form])}
-  (fn not-ify-dispatch [form] (-> form first ->string)))
+  (fn invert-dispatch [form] (-> form first ->string)))
 
-(defmethod not-ify "and"
+(defmethod invert "and"
+  invert-and
   [form]
-  (cons 'or (map not-ify (next form))))
+  (cons 'or (map invert (next form))))
 
-(defmethod not-ify "or"
+(defmethod invert "or"
+  invert-or
   [form]
-  (cons 'and (map not-ify (next form))))
+  (cons 'and (map invert (next form))))
 
-(defmethod not-ify "not"
+(defmethod invert "not"
+  invert-not
   [form]
   (second form))
 
-(def #^{:doc "Map of predicates to their complement."} not-ify-complement
+(def #^{:doc "Map of predicates to their complement."} invert-complement
   (atom {"="  "<>" "<>" "="
          "<=" ">"  ">"  "<="
          ">=" "<"  "<"  ">="
          "nil?" "not-nil?" "not-nil?" "nil?"}))
 
-(defmethod not-ify :default
+(defmethod invert :default
+  invert-default
   [form]
   (let [pred (-> form first ->string)]
-    (if-let [comp-pred (@not-ify-complement pred)]
+    (if-let [comp-pred (@invert-complement pred)]
       (cons comp-pred (next form))
       (throw
         (Exception. (str "Don't know how to complement predicate: " pred))))))
 
 (defmethod compile-function ::Not
   [form]
-  (let [form (not-ify (second form))]
+  (let [form (invert (second form))]
     (compile-function form)))
 
 (defmethod compile-function ::Identity
