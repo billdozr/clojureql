@@ -50,7 +50,7 @@
                    ["San Diego"      250 (java.util.Date. 1999 1 7)]
                    ["San Francisco"  300 (java.util.Date. 1999 1 8)]
                    ["Los Angeles"    100 (java.util.Date. 1999 1 8)]
-                   ["Boston"         700 (java.util.Date. 1999 1 9)]
+                   ["Bozton"         700 (java.util.Date. 1999 1 9)]
                    ["Berlin"         nil (java.util.Date. 1999 1 9)]]]
     (doseq [record data]
       (sql/run *conn-info* (make-stmt record))))
@@ -69,70 +69,69 @@
 
   ; Let's do a sample query.
   (println "SELECT StoreName FROM StoreInformation")
-  (run-and-show (sql/query StoreName StoreInformation))
+  (run-and-show (sql/query StoreInformation StoreName))
 
   ; Now let's modify the previous query to only return distinct
   ; results.
   (println "SELECT DISTINCT StoreName FROM StoreInformation")
   (run-and-show (sql/distinct!
-                  (sql/query StoreName StoreInformation)))
+                  (sql/query StoreInformation StoreName)))
 
   ; Where have we recorded more than 1000 sales?
   (println "SELECT StoreName FROM StoreInformation WHERE Sales > 1000")
-  (run-and-show (sql/query StoreName
-                           StoreInformation
+  (run-and-show (sql/query StoreInformation
+                           StoreName
                            (> Sales 1000)))
 
   ; Biggest sales and middlefield?
   (println "SELECT StoreName FROM StoreInformation WHERE Sales > 1000 OR (Sales < 500 AND Sales > 275)")
-  (run-and-show (sql/query StoreName
-                           StoreInformation
+  (run-and-show (sql/query StoreInformation
+                           StoreName
                            (or (> Sales 1000)
                                (and (< Sales 500)
                                     (> Sales 275)))))
 
   ; Let's check all stores containing an 'an'.
   (println "SELECT * FROM StoreInformation WHERE StoreName LIKE '%an%'")
-  (run-and-show (sql/query *
-                           StoreInformation
+  (run-and-show (sql/query StoreInformation
+                           *
                            (like StoreName "%an%")))
 
   ; Now we check the hit parade of our stores.
   (println "SELECT * FROM StoreInformation ORDER BY Sales DESC")
-  (run-and-show (sql/order-by (sql/query * StoreInformation)
+  (run-and-show (sql/order-by (sql/query StoreInformation *)
                               :descending
                               Sales))
 
   ; Oops - looks like we need to update 'Boztons' storename
   (println "UPDATE StoreInformation SET 'storename' = 'Boston' WHERE 'storename' = 'Bozton'")
   (sql/run *conn-info* (sql/update StoreInformation
-                            [storename "Boston"]
-                            (= storename "Bozton")))
-  
-  
+                                   [storename "Boston"]
+                                   (= storename "Bozton")))
+
   ; What is the average of our sales?
   (println "SELECT avg(Sales) FROM StoreInformation")
-  (run-and-show (sql/query (avg Sales) StoreInformation))
+  (run-and-show (sql/query StoreInformation (avg Sales)))
 
   ; What are the Sales for the different stores?
   (println "SELECT StoreName,sum(Sales) FROM StoreInformation GROUP BY StoreName")
-  (run-and-show (sql/group-by (sql/query [StoreName (sum Sales)]
-                                         StoreInformation)
+  (run-and-show (sql/group-by (sql/query StoreInformation
+                                         [StoreName (sum Sales)])
                               StoreName))
 
   ; What are the top stores?
   (println "SELECT StoreName,sum(Sales) FROM StoreInformation GROUP BY StoreName HAVING sum(Sales) > 1200")
-  (run-and-show (sql/having (sql/group-by (sql/query [StoreName (sum Sales)]
-                                                     StoreInformation)
+  (run-and-show (sql/having (sql/group-by (sql/query StoreInformation
+                                                     [StoreName (sum Sales)])
                                           StoreName)
                             (> (sum Sales) 1200)))
 
   ; Using aliases.
   (println "SELECT si.StoreName AS Store, sum(si.Sales) AS TotalSales FROM StoreInformation AS si GROUP BY si.StoreName")
-  (run-and-show (sql/group-by (sql/query [[si :cols
+  (run-and-show (sql/group-by (sql/query [[StoreInformation :as si]]
+                                         [[si :cols
                                            [StoreName :as Store]
-                                           [(sum Sales) :as TotalSales]]]
-                                         [[StoreInformation :as si]])
+                                           [(sum Sales) :as TotalSales]]])
                               si.StoreName))
 
   ; Be truly DB agnostic...
@@ -141,9 +140,9 @@
   (println "On SQL Server: SELECT ColA + ColB FROM table")
   (println "In ClojureQL:  One syntax to rule them all!")
   (run-and-show (sql/let-query [result (sql/group-by
-                                         (sql/query [StoreName
-                                                     [(sum Sales) :as TotalSales]]
-                                                    StoreInformation)
+                                         (sql/query StoreInformation
+                                                    [StoreName
+                                                     [(sum Sales) :as TotalSales]])
                                          StoreName)]
                   (map #(hash-map :our-result (str (:storename %)
                                                    " sold $"
@@ -152,44 +151,44 @@
 
   (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation INNER JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
   (run-and-show
-    (sql/join (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
-                         [StoreInformation TownInformation])
+    (sql/join (sql/query [StoreInformation TownInformation]
+                         [StoreInformation.StoreName TownInformation.Inhabitants])
               :inner [StoreInformation.StoreName TownInformation.TownName]))
 
   (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation LEFT JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
   (run-and-show
-    (sql/join (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
-                         [StoreInformation TownInformation])
+    (sql/join (sql/query [StoreInformation TownInformation]
+                         [StoreInformation.StoreName TownInformation.Inhabitants])
               :left [StoreInformation.StoreName TownInformation.TownName]))
 
   (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation RIGHT JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
   (run-and-show
-    (sql/join (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
-                         [StoreInformation TownInformation])
+    (sql/join (sql/query [StoreInformation TownInformation]
+                         [StoreInformation.StoreName TownInformation.Inhabitants])
               :right [StoreInformation.StoreName TownInformation.TownName]))
 
   (println "SELECT StoreInformation.StoreName, TownInformation.Inhabitants FROM StoreInformation FULL JOIN TownInformation ON StoreInformation.StoreName = TownInformation.TownName")
   (run-and-show
-    (sql/join (sql/query [StoreInformation.StoreName TownInformation.Inhabitants]
-                         [StoreInformation TownInformation])
+    (sql/join (sql/query [StoreInformation TownInformation]
+                         [StoreInformation.StoreName TownInformation.Inhabitants])
               :full [StoreInformation.StoreName TownInformation.TownName]))
 
   (println "SELECT StoreName FROM StoreInformation WHERE sales IS NULL")
   (run-and-show
-    (sql/query StoreName StoreInformation (nil? Sales)))
+    (sql/query StoreInformation StoreName (nil? Sales)))
 
   (println "SELECT StoreName FROM StoreInformation WHERE sales IS NOT NULL")
   (run-and-show
-    (sql/query StoreName StoreInformation (not-nil? Sales)))
+    (sql/query StoreInformation StoreName (not-nil? Sales)))
 
   (println "Again, this time with (not (nil? ..))")
   (println "SELECT StoreName FROM StoreInformation WHERE sales IS NOT NULL")
   (run-and-show
-    (sql/query StoreName StoreInformation (not (nil? Sales))))
+    (sql/query StoreInformation StoreName (not (nil? Sales))))
 
   (println "Domain predicate: is-low-performer?")
   (run-and-show
-    (sql/query StoreName StoreInformation (is-low-performer? Sales)))
+    (sql/query StoreInformation StoreName (is-low-performer? Sales)))
 
   ; Cover our tracks.
   (sql/run *conn-info* (sql/drop-table StoreInformation))

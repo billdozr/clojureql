@@ -167,7 +167,7 @@
 
 (defn query*
   "Driver for the query macro. Don't call directly!"
-  [col-spec table-spec pred-spec]
+  [table-spec col-spec pred-spec]
   (let [col-spec   (->vector col-spec)
         col-spec   (mapcat fix-prefix col-spec)
         col-spec   (map ->vector col-spec)
@@ -189,10 +189,10 @@
 
 (defmacro query
   "Define a SELECT query."
-  ([col-spec table-spec]
-   `(query ~col-spec ~table-spec nil))
-  ([col-spec table-spec pred-spec]
-   `(query* ~@(map quasiquote* [col-spec table-spec pred-spec]))))
+  ([table-spec col-spec]
+   `(query ~table-spec ~col-spec nil))
+  ([table-spec col-spec pred-spec]
+   `(query* ~@(map quasiquote* [table-spec col-spec pred-spec]))))
 
 (defn join*
   "Turn a query into JOIN."
