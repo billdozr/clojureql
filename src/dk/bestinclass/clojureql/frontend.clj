@@ -28,7 +28,7 @@
   :type :columns :tables :predicates :column-aliases :table-aliases :env)
 
 (defstruct sql-join
-  :type :query :env)
+  :type :query :on :env)
 
 (defstruct sql-ordered-query
   :type :query :order :columns :env)
