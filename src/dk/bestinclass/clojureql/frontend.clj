@@ -70,8 +70,14 @@
 (defstruct sql-create-table
   :type :table :columns :primary)
 
+(defstruct sql-create-view
+  :type :view :query :columns)
+
 (defstruct sql-drop-table
   :type :table :if-exists)
+
+(defstruct sql-drop-view
+  :type :view)
 
 (defstruct sql-alter-table
   :type :table :action)
@@ -501,6 +507,22 @@
   [table & columns]
   `(create-table* ~@(map quasiquote* (cons table columns))))
 
+
+(defn create-view*
+  "Driver function for create-view macro."
+  [view kwery columns]
+  (struct-map sql-create-view
+              :type    ::CreateView
+              :view    view
+              :query   kwery
+              :columns columns))
+
+(defmacro create-view
+  "Create a of the given name based on the given query. columns is a
+  vector of column names to use in the view."
+  [view kwery columns]
+  `(create-view* ~(quasiquote* view) ~kwery ~(quasiquote* columns)))
+
 (defn drop-table*
   "Driver function for the drop-table macro. Don't use directly."
   [table & if-exists]
@@ -514,6 +536,18 @@
   "Drop the given table. Optionally :if-exists might be specified."
   [table & if-exists]
   `(drop-table* ~@(map quasiquote* (cons table if-exists))))
+
+(defn drop-view*
+  "Driver function for the drop-view macro. Don't use directly."
+  [view]
+  (struct-map sql-drop-view
+              :type ::DropView
+              :view view))
+
+(defmacro drop-view
+  "Drop the given table. Optionally :if-exists might be specified."
+  [view]
+  `(drop-view* ~(quasiquote* view)))
 
 (defn batch-statements
   "Execute the given statements in a batch wrapped in a dedicated

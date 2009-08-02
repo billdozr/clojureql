@@ -190,7 +190,17 @@
   (run-and-show
     (sql/query StoreInformation StoreName (is-low-performer? Sales)))
 
+  (println "CREATE VIEW Stores (Name) AS SELECT DISTINCT StoreName FROM StoreInformation")
+  (let [query (sql/distinct! (sql/query StoreInformation StoreName))
+        view  (sql/create-view Stores query [Name])]
+    (sql/run *conn-info* view))
+
+  (println "SELECT * FROM Stores")
+  (run-and-show
+    (sql/query Stores *))
+
   ; Cover our tracks.
+  (sql/run *conn-info* (sql/drop-view Stores))
   (sql/run *conn-info* (sql/drop-table StoreInformation))
   (sql/run *conn-info* (sql/drop-table TownInformation))
   nil)

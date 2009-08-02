@@ -386,6 +386,13 @@
          (str-cat "," (map #(str (first %) " " (second %)) columns))
          ")")))
 
+(defmethod compile-sql [::CreateView ::Generic]
+  [stmt conn]
+  (let [{:keys [view query columns]} stmt]
+    (str-cat " " ["CREATE VIEW" view
+                  (str "(" (str-cat "," columns) ")")
+                  "AS" (compile-sql query conn)])))
+
 (defmethod compile-sql [::DropTable ::Generic]
   [stmt _]
   (let [{:keys [table if-exists]} stmt]
@@ -393,6 +400,10 @@
                   (when if-exists
                     "IF EXISTS")
                   table])))
+
+(defmethod compile-sql [::DropView ::Generic]
+  [stmt _]
+  (str "DROP VIEW " (:view stmt)))
 
 (defmethod compile-sql [::Raw ::Generic]
   [stmt _]
