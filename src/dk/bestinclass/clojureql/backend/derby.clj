@@ -57,3 +57,10 @@
          (util/str-cat "," columns)
          (when primary-key (str "," primary-key))
          ")")))
+
+(defmethod cql/compile-sql
+  [::cql/DropTable org.apache.derby.impl.jdbc.EmbedConnection]
+  [stmt conn]
+  (if (:if-exists stmt)
+    (throw (Exception. "Derby does not support IF EXISTS for DROP TABLE"))
+    ((get-method cql/compile-sql [::cql/DropTable ::cql/Generic]) stmt conn)))
