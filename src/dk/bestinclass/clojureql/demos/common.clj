@@ -202,6 +202,9 @@
   ; Cover our tracks.
   (sql/run *conn-info* (sql/drop-view Stores))
   (sql/run *conn-info* (sql/drop-table StoreInformation))
+
+  ; Excersice a delete-from
+  (sql/run *conn-info* (sql/delete-from TownInformation))
   (sql/run *conn-info* (sql/drop-table TownInformation))
   nil)
 

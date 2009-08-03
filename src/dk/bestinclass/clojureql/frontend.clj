@@ -386,18 +386,22 @@
 
 (defn delete-from*
   "Driver for the delete-from macro. Don't call directly."
-  [table pred-spec]
-  (let [[pred-spec env] (build-env pred-spec [])]
-    (struct-map sql-delete
-                :type       ::Delete
-                :table      table
-                :predicates pred-spec
-                :env        env)))
+  ([table]
+   (delete-from* table nil))
+  ([table pred-spec]
+   (let [[pred-spec env] (build-env pred-spec [])]
+     (struct-map sql-delete
+                 :type       ::Delete
+                 :table      table
+                 :predicates pred-spec
+                 :env        env))))
 
 (defmacro delete-from
   "Delete the entries matching the given predicates from the given table."
-  [table pred-spec]
-  `(delete-from* ~@(map quasiquote* [table pred-spec])))
+  ([table]
+   `(delete-from* ~(quasiquote* table)))
+  ([table pred-spec]
+   `(delete-from* ~@(map quasiquote* [table pred-spec]))))
 
 ; Table Handling
 
@@ -476,6 +480,7 @@
   [table]
   `(alter-table ~table ~'drop ~'primary ~'key))
 
+; FIXME: With alter?? not DROP TABLE??
 (defmacro drop-table
   [table]
   `(alter-table ~table ~'drop))

@@ -335,8 +335,9 @@
 (defmethod compile-sql [::Delete ::Generic]
   [stmt _]
   (let [{:keys [table predicates]} stmt]
-    (str-cat " " ["DELETE FROM" table
-                  "WHERE"       (compile-function predicates)])))
+    (str-cat " " (list* "DELETE FROM" table
+                        (when predicates
+                          ["WHERE" (compile-function predicates)])))))
 
 (defmulti compile-sql-alter
   "Sub method to compile ALTER statements."
