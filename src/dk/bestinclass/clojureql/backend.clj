@@ -498,8 +498,19 @@
 (defmacro with-connection
   "Open the database described by the given connection-info and bind
   it to connection. Then execute body."
-  [[connection connection-info] & body]
-  `(with-connection* ~connection-info (fn [~connection] ~@body)))
+  [connections & body]
+  (let [conn-vars  (take-nth 2 connections)
+        conn-infos (take-nth 2 (next connections))
+        conns      (map (fn [info]
+                          `(let [info# ~info]
+                             (java.sql.DriverManager/getConnection
+                               (:jdbc-url info#)
+                               (:username info#)
+                               (:password info#))))
+                        conn-infos)]
+  `(io! "Database interaction cannot happen in a transaction"
+        (with-open ~(vec (interleave conn-vars conns))
+          ~@body))))
 
 (defn run*
   " Driver for run - Dont call directly "
