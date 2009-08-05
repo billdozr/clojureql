@@ -16,21 +16,21 @@
 
 (defmethod cql/compile-sql
   [::cql/CreateTable org.postgresql.PGConnection]
-  [stmt db]
+  [stmt db]  
   (let [{:keys [table columns options]} stmt
         columns (map (fn [column]
                        (let [col-str (util/->string (first column))]
-                         (str col-str
-                              (when (= col-str (util/->string (:auto-inc options)))
-                                " SERIAL")
-                              (when (= col-str (util/->string (:auto-inc options)))
-                                " NOT NULL"))))
-                      columns)]
+                         (str col-str " "
+                              (if (= col-str (util/->string (:auto-inc options)))
+                                " SERIAL"
+                                (second column))
+                              (when (and (=    col-str (util/->string (:not-null options)))
+                                         (not= col-str (util/->string (:auto-inc options)))
+                                         " NOT NULL")))))
+                     columns)]
     (util/str-cat " " ["CREATE TABLE" table "(" (util/str-cat "," columns)
                        (when-let [p-key (:primary-key options)]
-                         (util/str-cat " " ["PRIMARY KEY ("
-                                            (util/->string p-key)
-                                            ")"]))
+                         (str ", PRIMARY KEY (" (util/->string p-key) ")"))
                        ")"])))
 
 (prefer-method cql/compile-sql
