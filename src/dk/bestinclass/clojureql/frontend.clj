@@ -183,7 +183,9 @@
         table-spec (map ->vector table-spec)
         [table-spec table-aliases] (reduce check-alias [[] {}] table-spec)
 
-        [pred-spec env]            (build-env pred-spec [])]
+        [pred-spec env]            (if (string? pred-spec)
+                                     [pred-spec []]
+                                     (build-env pred-spec []))]
     (struct-map sql-query
                 :type           ::Select
                 :columns        col-spec
