@@ -346,7 +346,7 @@
 
 (defn insert-into*
   "Driver for the insert-into macro. Don't use directly."
-  [table & col-val-pairs]
+  [table col-val-pairs]
   (if (even? (count col-val-pairs))
     (let [columns (take-nth 2 col-val-pairs)
           values  (take-nth 2 (rest col-val-pairs))]

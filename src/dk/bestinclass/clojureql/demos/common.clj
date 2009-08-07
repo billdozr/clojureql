@@ -43,9 +43,9 @@
   ; Populate the table with data.
   (let [make-stmt (fn [[store sale date]]
                     (sql/insert-into StoreInformation
-                                     StoreName ~store
-                                     Sales     ~sale
-                                     Date      ~date))
+                                     [StoreName ~store
+                                      Sales     ~sale
+                                      Date      ~date]))
         data      [["Los Angeles"   1500 (java.util.Date. 1999 1 5)]
                    ["San Diego"      250 (java.util.Date. 1999 1 7)]
                    ["San Francisco"  300 (java.util.Date. 1999 1 8)]
@@ -58,8 +58,8 @@
   (sql/with-connection [conn *conn-info*]
     (let [make-stmt (fn [[town inhabitants]]
                       (sql/insert-into TownInformation
-                                       TownName    ~town
-                                       Inhabitants ~inhabitants))
+                                       [TownName    ~town
+                                       Inhabitants ~inhabitants]))
           data      [["Los Angeles"   2500000]
                      ["San Francisco" 1000000]
                      ["Boston"         500000]
