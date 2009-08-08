@@ -206,9 +206,7 @@
         stmnt (list* "SELECT" cols
                      "FROM"   tabls
                      (when predicates
-                       (if (string? predicates)
-                         (list "WHERE" predicates)
-                         (list "WHERE" (compile-function predicates)))))]
+                       (list "WHERE" (compile-function predicates))))]
     (str-cat " " stmnt)))
 
 (defmethod compile-sql [::Join ::Generic]
