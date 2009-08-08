@@ -361,8 +361,8 @@
 
 (defmacro insert-into
   "Insert data into a table."
-  [table & col-val-pairs]
-  `(insert-into* ~@(map quasiquote* (cons table col-val-pairs))))
+  [table col-val-pairs]
+  `(insert-into* ~@(map quasiquote* [table col-val-pairs])))
 
 (defn update*
   "Driver for the update macro. Don't call directly."
