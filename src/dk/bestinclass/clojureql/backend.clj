@@ -174,7 +174,7 @@
 (defmulti compile-sql
   "Compile the given SQL statement for the given database."
   {:arglists '([stmt db])}
-  (fn [stmt db] [(stmt :type) (class db)])
+  (fn [stmt db] [(type stmt) (class db)])
   :hierarchy sql-hierarchy)
 
 (defn compile-column-spec
@@ -222,7 +222,7 @@
         right (compile-table-spec [(second tables)] table-aliases)
         stmnt (list* "SELECT" cols
                      "FROM"   left
-                     (join-types (:type stmt))
+                     (join-types (type stmt))
                      "JOIN"   right
                      "ON"     (compile-function on)
                      (when predicates
@@ -446,7 +446,7 @@
   "Execute the given SQL statement in the context of the given connection
   as obtained by with-connection."
   {:arglists '([sql-stmt conn])}
-  (fn [sql-stmt conn] (sql-stmt :type))
+  (fn [sql-stmt conn] (type sql-stmt))
   :default  ::Execute
   :hierarchy sql-hierarchy)
 
