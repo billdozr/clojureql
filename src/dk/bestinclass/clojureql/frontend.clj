@@ -172,9 +172,9 @@
    definately not recommended. If you find ClojureQL lacking in features
    please leave us a note on http://clojureql.lighthouseapp.com"
   [txt]
-  (with-typ (struct-map sql-raw-statement
-                        :statement txt)
-            ::Raw))
+  (make-type (struct-map sql-raw-statement
+                         :statement txt)
+             ::Raw))
 
 (defn query*
   "Driver for the query macro. Don't call directly!"
